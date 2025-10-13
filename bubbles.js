@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SimplexNoise } from "three/examples/jsm/math/SimplexNoise";
+import { SimplexNoise } from "three/examples/jsm/math/SimplexNoise.js";
 import { bubbleVertexShader, bubbleFragmentShader } from "./bubbleShader.js";
 
 const canvas = document.querySelector("#webgl");
