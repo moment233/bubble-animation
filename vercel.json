@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/bubbles.html"
+    }
+  ],
+  "buildCommand": "npm install",
+  "outputDirectory": ".",
+  "framework": null
+}

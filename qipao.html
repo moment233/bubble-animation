@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>なめらかに動く球体</title>
+    <link rel="stylesheet" href="qipao.css" />
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+    <main>
+      <div class="controls">
+        <div>
+          <label>Speed</label>
+          <input
+            type="range"
+            min="5"
+            max="120"
+            value="13"
+            step="1"
+            name="speed"
+          />
+        </div>
+        <div>
+          <label>Spikes</label>
+          <input
+            type="range"
+            min=".03"
+            max="2"
+            value=".36"
+            step=".05"
+            name="spikes"
+          />
+        </div>
+        <div>
+          <label>Processing</label>
+          <input
+            type="range"
+            min=".3"
+            max="2.4"
+            value=".8"
+            step=".01"
+            name="processing"
+          />
+        </div>
+      </div>
+    </main>
+    <script type="module" src="qipao.js"></script>
+  </body>
+</html>
