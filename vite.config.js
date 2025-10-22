@@ -6,6 +6,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: "index.html",
+        perfectSphere: "perfect-sphere.html",
+        realisticBubble: "realistic-bubble.html",
       },
     },
     outDir: "dist",
