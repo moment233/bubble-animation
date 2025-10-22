@@ -37,7 +37,7 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
   // 物理参数
   const physics = useMemo(() => {
     const k = 0.8 + Math.random() * 0.4
-    const params = {
+    return {
       terminalVelocity: k * Math.sqrt(config.size) * 0.04,
       swayAmplitude: (0.5 + Math.random() * 1.5) * config.size * 0.6,
       swayFrequency: 0.3 / config.size,
@@ -50,12 +50,6 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
       zSwayPhase: Math.random() * Math.PI * 2,
       noiseOffset: Math.random() * 1000
     }
-    console.log('📊 气泡物理参数:', {
-      size: config.size,
-      terminalVelocity: params.terminalVelocity,
-      initialPosition
-    })
-    return params
   }, [config.size, initialPosition])
 
   const physicsState = useRef(physics)
@@ -99,13 +93,11 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
 
       if (progress >= 1) {
         // 收缩完成，触发液滴效果
-        console.log('✅ 收缩动画完成，触发液滴')
         mesh.visible = false
         burstStartTimeRef.current = null
 
         if (onBurst) {
           onBurst(mesh.position.clone(), config, () => {
-            console.log('🔄 液滴完成，开始重生')
             respawn()
           })
         }
@@ -120,19 +112,13 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
     // 物理漂浮行为
     const p = physicsState.current
 
-    // 1. 向上运动
+    // 1. 向上运动 - 速度倍率 10x
     const damping = 0.03
     p.verticalVelocity += (p.terminalVelocity - p.verticalVelocity) * damping
-    const yMovement = p.verticalVelocity * deltaTime * 30
-    mesh.position.y += yMovement
+    mesh.position.y += p.verticalVelocity * deltaTime * 300
 
-    // 每60帧打印一次位置（避免刷屏）
-    if (Math.random() < 0.016) {
-      console.log(`⬆️ 气泡上升 - Y: ${mesh.position.y.toFixed(2)}, velocity: ${p.verticalVelocity.toFixed(4)}, movement: ${yMovement.toFixed(6)}`)
-    }
-
-    // 2. X轴摇摆
-    p.swayPhase += p.swayFrequency * deltaTime * Math.PI
+    // 2. X轴摇摆 - 速度倍率 10x
+    p.swayPhase += p.swayFrequency * deltaTime * Math.PI * 10
     let swayOffset = Math.sin(p.swayPhase) * p.swayAmplitude
 
     if (config.size > 3.0) {
@@ -141,8 +127,8 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
 
     mesh.position.x = p.baseX + swayOffset
 
-    // 3. Z轴摇摆
-    p.zSwayPhase += p.zSwayFrequency * deltaTime * Math.PI
+    // 3. Z轴摇摆 - 速度倍率 10x
+    p.zSwayPhase += p.zSwayFrequency * deltaTime * Math.PI * 10
     let zSwayOffset = Math.sin(p.zSwayPhase) * p.zSwayAmplitude
     mesh.position.z = p.baseZ + zSwayOffset
 
@@ -207,6 +193,7 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
     const geometry = geometryRef.current
     if (!geometry || !positionAttributeBase.current) return
 
+    // 保持与 good-bubble 一致的形变速度
     const animTime = time * 0.00001 * config.speed + config.offset
     const positionAttribute = geometry.getAttribute('position')
     const vector = new THREE.Vector3()
@@ -231,12 +218,6 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
     const mesh = meshRef.current
     if (!mesh) return
 
-    console.log('🎯 气泡破裂开始', {
-      position: mesh.position,
-      scale: mesh.scale,
-      config: config
-    })
-
     stateRef.current = BUBBLE_STATE.BURSTING
     burstStartTimeRef.current = performance.now()
     originalScaleRef.current = {
@@ -244,8 +225,6 @@ export default function RealisticBubble({ config, envMap, onBurst, initialPositi
       y: mesh.scale.y,
       z: mesh.scale.z
     }
-
-    console.log('💾 保存的原始缩放:', originalScaleRef.current)
   }
 
   // 重生

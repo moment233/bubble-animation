@@ -207,15 +207,21 @@ function SceneContent() {
       {
         id: effectId,
         position: position.clone(),
-        config
+        config,
+        onRespawn
       }
     ])
+  }
 
-    // 延迟后回调重生和移除效果
-    setTimeout(() => {
-      if (onRespawn) onRespawn()
-      setBurstEffects((prev) => prev.filter((e) => e.id !== effectId))
-    }, 500)
+  // 处理液滴完成
+  const handleDropletsComplete = (effectId, onRespawn) => {
+    // 先触发重生
+    if (onRespawn) {
+      onRespawn()
+    }
+
+    // 移除效果
+    setBurstEffects((prev) => prev.filter((e) => e.id !== effectId))
   }
 
   return (
@@ -232,9 +238,7 @@ function SceneContent() {
           position={effect.position}
           bubbleConfig={effect.config}
           envMap={envMap}
-          onComplete={() => {
-            setBurstEffects((prev) => prev.filter((e) => e.id !== effect.id))
-          }}
+          onComplete={() => handleDropletsComplete(effect.id, effect.onRespawn)}
         />
       ))}
     </>
@@ -244,7 +248,7 @@ function SceneContent() {
 export default function RealisticBubblesPage() {
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
-      <Canvas camera={{ fov: 60, position: [0, 0, 30], near: 0.1, far: 100 }}>
+      <Canvas camera={{ fov: 60, position: [0, 0, 30], near: 0.1, far: 100 }} dpr={[1, 2]}>
         <Suspense fallback={null}>
           <SceneContent />
         </Suspense>

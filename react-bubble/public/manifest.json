@@ -1,0 +1,9 @@
+{
+  "short_name": "Bubble App",
+  "name": "Realistic Bubble Animation",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
