@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo 2 Plus V4: 空间遮罩气泡 🎭</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 25px;
+        border-radius: 12px;
+        max-width: 520px;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 107, 107, 0.5);
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .info h1 {
+        font-size: 26px;
+        margin-bottom: 12px;
+        color: #ff6b6b;
+        text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+      }
+      .info h2 {
+        font-size: 18px;
+        margin: 20px 0 10px;
+        color: #ff8787;
+        border-bottom: 1px solid rgba(255, 135, 135, 0.3);
+        padding-bottom: 5px;
+      }
+      .info h3 {
+        font-size: 16px;
+        margin: 15px 0 8px;
+        color: #00ff88;
+      }
+      .info p {
+        font-size: 14px;
+        line-height: 1.7;
+        margin-bottom: 10px;
+        color: #ddd;
+      }
+      .info code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #00ff88;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+      }
+      .info ul {
+        margin-left: 20px;
+        margin-bottom: 15px;
+      }
+      .info li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+        color: #ccc;
+      }
+      .highlight {
+        color: #ff6b6b;
+        font-weight: bold;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 107, 107, 0.5);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 107, 107, 0.8);
+      }
+
+      /* 控制面板样式 */
+      .controls-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 340px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        color: white;
+        max-height: 90vh;
+        overflow-y: auto;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 107, 107, 0.5);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .controls-panel h2 {
+        font-size: 22px;
+        margin-bottom: 20px;
+        color: #ff6b6b;
+        text-align: center;
+        text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+      }
+
+      .control-group {
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .control-group:last-of-type {
+        border-bottom: none;
+      }
+
+      .control-group h3 {
+        font-size: 16px;
+        color: #ff8787;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+      }
+
+      .control-group h3::before {
+        content: "▶";
+        margin-right: 8px;
+        font-size: 12px;
+      }
+
+      .control-item {
+        margin-bottom: 15px;
+      }
+
+      .control-item label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        font-size: 13px;
+        color: #ddd;
+      }
+
+      .control-item label span {
+        color: #ff6b6b;
+        font-weight: bold;
+        font-family: "Courier New", monospace;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #ff6b6b;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(255, 107, 107, 0.8);
+        transition: all 0.2s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 15px rgba(255, 107, 107, 1);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #ff6b6b;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(255, 107, 107, 0.8);
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .btn {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: inherit;
+      }
+
+      .btn-reset {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-reset:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .preset-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 15px;
+      }
+
+      .btn-preset {
+        padding: 8px;
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid rgba(255, 107, 107, 0.3);
+        color: #ff6b6b;
+        font-size: 12px;
+      }
+
+      .btn-preset:hover {
+        background: rgba(255, 107, 107, 0.2);
+        border-color: #ff6b6b;
+      }
+
+      .tip {
+        font-size: 11px;
+        color: #888;
+        margin-top: 3px;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h1>🎭 Demo 2 Plus V4: 空间遮罩气泡</h1>
+      <p>
+        <strong>核心突破：</strong>
+        使用
+        <span class="highlight">空间遮罩（Spatial Mask）</span>
+        打破旋转对称性，实现纹理只在局部区域显示，而非整个边缘圆环。
+      </p>
+
+      <h2>🎯 技术原理</h2>
+      <p>
+        <strong>问题：</strong>
+        菲涅耳效应基于观察角度，在球体上产生旋转对称的完整圆环。
+      </p>
+      <p>
+        <strong>解决：</strong>
+        引入基于空间位置的噪声遮罩，控制哪些区域显示纹理。
+      </p>
+
+      <h3>核心公式</h3>
+      <div
+        style="
+          background: rgba(255, 107, 107, 0.1);
+          padding: 15px;
+          border-radius: 8px;
+          margin: 15px 0;
+        "
+      >
+        <code style="display: block; color: #ff6b6b">
+          最终颜色 = (纹理 + 薄膜干涉) × 边缘遮罩 ×
+          <strong>空间遮罩</strong>
+        </code>
+        <p style="margin-top: 10px; font-size: 13px">
+          <strong>空间遮罩</strong>
+          ：基于 Simplex 噪声生成的 0/1 二值遮罩
+        </p>
+      </div>
+
+      <h2>🌈 视觉效果</h2>
+      <ul>
+        <li>
+          ✅
+          <strong>局部显示</strong>
+          - 纹理只在部分区域出现
+        </li>
+        <li>
+          ✅
+          <strong>不连续分布</strong>
+          - 打破旋转对称性
+        </li>
+        <li>
+          ✅
+          <strong>可控色块</strong>
+          - 调整阈值控制显示区域大小
+        </li>
+        <li>
+          ✅
+          <strong>自然边界</strong>
+          - 柔和度参数控制边缘硬度
+        </li>
+      </ul>
+
+      <h2>🎛️ 核心参数</h2>
+      <ul>
+        <li>
+          <code>遮罩阈值</code>
+          - 控制显示区域大小（值越大显示越少）
+        </li>
+        <li>
+          <code>遮罩缩放</code>
+          - 控制色块密度（值越大色块越小越多）
+        </li>
+        <li>
+          <code>遮罩柔和度</code>
+          - 控制边界硬度（0=锐利，0.3=柔和）
+        </li>
+      </ul>
+
+      <p style="margin-top: 20px; font-size: 12px; color: #888">
+        💡 提示：调整遮罩参数可以精确控制纹理显示的位置和范围
+      </p>
+    </div>
+
+    <!-- 🎛️ 控制面板 -->
+    <div class="controls-panel">
+      <h2>🎛️ 实时参数调整</h2>
+
+      <!-- 空间遮罩参数控制 -->
+      <div class="control-group">
+        <h3>空间遮罩 🎭</h3>
+        <div class="control-item">
+          <label>
+            遮罩阈值
+            <span id="maskThresholdValue">0.50</span>
+          </label>
+          <input
+            type="range"
+            id="maskThreshold"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.5"
+          />
+          <div class="tip">控制显示区域大小（值越大显示越少）</div>
+        </div>
+        <div class="control-item">
+          <label>
+            遮罩缩放
+            <span id="maskScaleValue">3.00</span>
+          </label>
+          <input
+            type="range"
+            id="maskScale"
+            min="1"
+            max="10"
+            step="0.5"
+            value="3"
+          />
+          <div class="tip">控制色块密度（值越大色块越密集）</div>
+        </div>
+        <div class="control-item">
+          <label>
+            遮罩柔和度
+            <span id="maskSoftnessValue">0.10</span>
+          </label>
+          <input
+            type="range"
+            id="maskSoftness"
+            min="0"
+            max="0.3"
+            step="0.01"
+            value="0.1"
+          />
+          <div class="tip">控制边界硬度（0=锐利，0.3=柔和）</div>
+        </div>
+      </div>
+
+      <!-- 边缘区域控制 -->
+      <div class="control-group">
+        <h3>边缘区域</h3>
+        <div class="control-item">
+          <label>
+            边缘起点
+            <span id="edgeStartValue">0.05</span>
+          </label>
+          <input
+            type="range"
+            id="edgeStart"
+            min="0"
+            max="0.5"
+            step="0.01"
+            value="0.05"
+          />
+          <div class="tip">值越小，纹理区域越大</div>
+        </div>
+        <div class="control-item">
+          <label>
+            边缘终点
+            <span id="edgeEndValue">0.60</span>
+          </label>
+          <input
+            type="range"
+            id="edgeEnd"
+            min="0.3"
+            max="1.0"
+            step="0.01"
+            value="0.6"
+          />
+          <div class="tip">控制边缘渐变宽度</div>
+        </div>
+      </div>
+
+      <!-- 效果强度控制 -->
+      <div class="control-group">
+        <h3>效果强度</h3>
+        <div class="control-item">
+          <label>
+            纹理强度
+            <span id="textureStrengthValue">0.60</span>
+          </label>
+          <input
+            type="range"
+            id="textureStrength"
+            min="0"
+            max="3"
+            step="0.1"
+            value="0.6"
+          />
+          <div class="tip">控制纹理贴图的可见程度</div>
+        </div>
+        <div class="control-item">
+          <label>
+            薄膜干涉强度
+            <span id="iridescenceStrengthValue">0.80</span>
+          </label>
+          <input
+            type="range"
+            id="iridescenceStrength"
+            min="0"
+            max="2"
+            step="0.1"
+            value="0.8"
+          />
+          <div class="tip">控制彩虹色的强度</div>
+        </div>
+        <div class="control-item">
+          <label>
+            环境反射强度
+            <span id="reflectionStrengthValue">0.30</span>
+          </label>
+          <input
+            type="range"
+            id="reflectionStrength"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.3"
+          />
+          <div class="tip">控制 HDR 高光的强度</div>
+        </div>
+      </div>
+
+      <!-- 光学参数 -->
+      <div class="control-group">
+        <h3>光学参数</h3>
+        <div class="control-item">
+          <label>
+            菲涅耳指数
+            <span id="fresnelPowerValue">1.80</span>
+          </label>
+          <input
+            type="range"
+            id="fresnelPower"
+            min="0.5"
+            max="5"
+            step="0.1"
+            value="1.8"
+          />
+          <div class="tip">控制边缘效应的锐利程度</div>
+        </div>
+        <div class="control-item">
+          <label>
+            薄膜厚度基础值
+            <span id="filmThicknessValue">300</span>
+          </label>
+          <input
+            type="range"
+            id="filmThickness"
+            min="100"
+            max="800"
+            step="10"
+            value="300"
+          />
+          <div class="tip">控制干涉颜色的基础波长</div>
+        </div>
+      </div>
+
+      <!-- 透明度控制 -->
+      <div class="control-group">
+        <h3>透明度</h3>
+        <div class="control-item">
+          <label>
+            中心透明度
+            <span id="centerAlphaValue">0.20</span>
+          </label>
+          <input
+            type="range"
+            id="centerAlpha"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.2"
+          />
+          <div class="tip">中心黑色区域的透明程度</div>
+        </div>
+      </div>
+
+      <!-- 按钮组 -->
+      <div class="button-group">
+        <button class="btn btn-reset" id="resetBtn">🔄 重置默认</button>
+      </div>
+
+      <!-- 预设按钮 -->
+      <div class="preset-buttons">
+        <button class="btn btn-preset" id="presetSparse">稀疏分布</button>
+        <button class="btn btn-preset" id="presetDense">密集色块</button>
+        <button class="btn btn-preset" id="presetBalance">平衡模式</button>
+        <button class="btn btn-preset" id="presetLarge">大块区域</button>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Three.js 场景初始化 ==========
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 4;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 核心：空间遮罩气泡 Shader ==========
+
+      // 📝 顶点着色器
+      const vertexShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec2 vUv;
+        
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vPosition = worldPosition.xyz;
+          vUv = uv;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `;
+
+      // 📝 片段着色器
+      const fragmentShader = `
+        uniform vec3 uCameraPos;
+        uniform samplerCube envMap;
+        uniform sampler2D uTexture;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec2 vUv;
+        
+        // 🎛️ 可控参数
+        uniform float uMaskThreshold;
+        uniform float uMaskScale;
+        uniform float uMaskSoftness;
+        uniform float uEdgeStart;
+        uniform float uEdgeEnd;
+        uniform float uTextureStrength;
+        uniform float uIridescenceStrength;
+        uniform float uReflectionStrength;
+        uniform float uFresnelPower;
+        uniform float uFilmThickness;
+        uniform float uCenterAlpha;
+        
+        const float PI = 3.14159265359;
+        
+        // ========== Simplex 3D 噪声函数 ==========
+        vec3 mod289(vec3 x) {
+          return x - floor(x * (1.0 / 289.0)) * 289.0;
+        }
+        
+        vec4 mod289(vec4 x) {
+          return x - floor(x * (1.0 / 289.0)) * 289.0;
+        }
+        
+        vec4 permute(vec4 x) {
+          return mod289(((x * 34.0) + 1.0) * x);
+        }
+        
+        vec4 taylorInvSqrt(vec4 r) {
+          return 1.79284291400159 - 0.85373472095314 * r;
+        }
+        
+        float snoise(vec3 v) {
+          const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+          const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+          
+          vec3 i = floor(v + dot(v, C.yyy));
+          vec3 x0 = v - i + dot(i, C.xxx);
+          
+          vec3 g = step(x0.yzx, x0.xyz);
+          vec3 l = 1.0 - g;
+          vec3 i1 = min(g.xyz, l.zxy);
+          vec3 i2 = max(g.xyz, l.zxy);
+          
+          vec3 x1 = x0 - i1 + C.xxx;
+          vec3 x2 = x0 - i2 + C.yyy;
+          vec3 x3 = x0 - D.yyy;
+          
+          i = mod289(i);
+          vec4 p = permute(permute(permute(
+                    i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                  + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                  + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+          
+          float n_ = 0.142857142857;
+          vec3 ns = n_ * D.wyz - D.xzx;
+          
+          vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+          
+          vec4 x_ = floor(j * ns.z);
+          vec4 y_ = floor(j - 7.0 * x_);
+          
+          vec4 x = x_ * ns.x + ns.yyyy;
+          vec4 y = y_ * ns.x + ns.yyyy;
+          vec4 h = 1.0 - abs(x) - abs(y);
+          
+          vec4 b0 = vec4(x.xy, y.xy);
+          vec4 b1 = vec4(x.zw, y.zw);
+          
+          vec4 s0 = floor(b0) * 2.0 + 1.0;
+          vec4 s1 = floor(b1) * 2.0 + 1.0;
+          vec4 sh = -step(h, vec4(0.0));
+          
+          vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+          vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+          
+          vec3 p0 = vec3(a0.xy, h.x);
+          vec3 p1 = vec3(a0.zw, h.y);
+          vec3 p2 = vec3(a1.xy, h.z);
+          vec3 p3 = vec3(a1.zw, h.w);
+          
+          vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+          p0 *= norm.x;
+          p1 *= norm.y;
+          p2 *= norm.z;
+          p3 *= norm.w;
+          
+          vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+          m = m * m;
+          return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+        }
+        
+        // ========== 薄膜干涉颜色计算 ==========
+        vec3 getThinFilmColor(float cosTheta, float thickness) {
+          float opticalPath = 2.0 * 1.33 * thickness * cosTheta;
+          
+          float phaseR = (2.0 * PI * opticalPath) / 650.0;
+          float phaseO = (2.0 * PI * opticalPath) / 610.0;
+          float phaseY = (2.0 * PI * opticalPath) / 580.0;
+          float phaseG = (2.0 * PI * opticalPath) / 550.0;
+          float phaseC = (2.0 * PI * opticalPath) / 490.0;
+          float phaseB = (2.0 * PI * opticalPath) / 450.0;
+          float phaseV = (2.0 * PI * opticalPath) / 420.0;
+          
+          float intensityR = pow(0.5 + 0.5 * cos(phaseR), 1.2);
+          float intensityO = pow(0.5 + 0.5 * cos(phaseO), 1.2);
+          float intensityY = pow(0.5 + 0.5 * cos(phaseY), 1.2);
+          float intensityG = pow(0.5 + 0.5 * cos(phaseG), 1.2);
+          float intensityC = pow(0.5 + 0.5 * cos(phaseC), 1.2);
+          float intensityB = pow(0.5 + 0.5 * cos(phaseB), 1.2);
+          float intensityV = pow(0.5 + 0.5 * cos(phaseV), 1.2);
+          
+          vec3 color = vec3(0.0);
+          color.r = intensityR * 1.0 + intensityO * 0.9 + intensityY * 0.7;
+          color.g = intensityY * 0.8 + intensityG * 1.0 + intensityC * 0.9;
+          color.b = intensityC * 0.8 + intensityB * 1.0 + intensityV * 0.9;
+          
+          color = color / max(max(color.r, color.g), max(color.b, 0.01));
+          
+          float luma = dot(color, vec3(0.299, 0.587, 0.114));
+          color = mix(vec3(luma), color, 1.8);
+          
+          return clamp(color, 0.0, 1.0);
+        }
+        
+        // ========== 主函数 ==========
+        void main() {
+          vec3 viewDirection = normalize(uCameraPos - vPosition);
+          vec3 normal = normalize(vNormal);
+          float NdotV = abs(dot(normal, viewDirection));
+          
+          // === 🎭 关键：空间遮罩生成 ===
+          float noise = snoise(vPosition * uMaskScale);
+          
+          // 将噪声从 [-1,1] 映射到 [0,1]
+          float noiseNormalized = noise * 0.5 + 0.5;
+          
+          // 生成遮罩（带柔和边界）
+          float spatialMask = smoothstep(
+            uMaskThreshold - uMaskSoftness,
+            uMaskThreshold + uMaskSoftness,
+            noiseNormalized
+          );
+          
+          // === 菲涅耳效应 ===
+          float fresnel = pow(1.0 - NdotV, uFresnelPower);
+          float edgeMask = smoothstep(uEdgeStart, uEdgeEnd, fresnel);
+          
+          // === 薄膜干涉 ===
+          float thickness = uFilmThickness;
+          vec3 iridescence = getThinFilmColor(NdotV, thickness);
+          iridescence *= 1.5;
+          
+          // === 环境反射 ===
+          vec3 reflected = reflect(-viewDirection, normal);
+          vec3 envColor = textureCube(envMap, reflected).rgb;
+          
+          // === 折射 ===
+          vec3 refracted = refract(-viewDirection, normal, 1.0 / 1.33);
+          vec3 refractColor = textureCube(envMap, refracted).rgb;
+          if (dot(refracted, refracted) < 0.01) {
+            refractColor = vec3(0.0);
+          }
+          
+          // === Beer-Lambert 吸收 ===
+          float bubbleThickness = (1.0 - NdotV) * 2.0;
+          vec3 absorptionColor = vec3(0.05, 0.04, 0.08);
+          vec3 absorption = exp(-absorptionColor * bubbleThickness * 0.2);
+          vec3 transmittedColor = refractColor * absorption;
+          
+          // === 纹理采样 ===
+          vec3 textureColor = texture2D(uTexture, vUv).rgb;
+          
+          // === 🎯 关键：应用空间遮罩到纹理和薄膜干涉 ===
+          vec3 edgeBase = textureColor * uTextureStrength * spatialMask;
+          vec3 edgeIridescence = iridescence * uIridescenceStrength * spatialMask;
+          vec3 edgeReflection = envColor * fresnel * uReflectionStrength;
+          
+          vec3 edgeColor = edgeBase + edgeIridescence + edgeReflection;
+          
+          vec3 centerColor = vec3(0.0, 0.0, 0.0);
+          vec3 finalColor = mix(centerColor, edgeColor, edgeMask);
+          
+          // === 后处理 ===
+          if (edgeMask > 0.1 && spatialMask > 0.1) {
+            float luminance = dot(finalColor, vec3(0.299, 0.587, 0.114));
+            finalColor = mix(vec3(luminance), finalColor, 1.4);
+            finalColor *= 1.2;
+          }
+          
+          // === 🎯 透明度也受空间遮罩影响 ===
+          float baseAlpha = edgeMask * 0.95 + (1.0 - edgeMask) * uCenterAlpha;
+          float alpha = baseAlpha * max(spatialMask, 0.1);
+          
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // 1. 创建几何体
+      const geometry = new THREE.SphereGeometry(1.8, 128, 128);
+
+      // 2. 创建 Shader 材质
+      const material = new THREE.ShaderMaterial({
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        uniforms: {
+          uCameraPos: { value: camera.position },
+          envMap: { value: null },
+          uTexture: { value: null },
+
+          // 空间遮罩参数
+          uMaskThreshold: { value: 0.5 },
+          uMaskScale: { value: 3.0 },
+          uMaskSoftness: { value: 0.1 },
+
+          // 原有参数
+          uEdgeStart: { value: 0.05 },
+          uEdgeEnd: { value: 0.6 },
+          uTextureStrength: { value: 0.6 },
+          uIridescenceStrength: { value: 0.8 },
+          uReflectionStrength: { value: 0.3 },
+          uFresnelPower: { value: 1.8 },
+          uFilmThickness: { value: 300.0 },
+          uCenterAlpha: { value: 0.2 },
+        },
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+
+      const sphere = new THREE.Mesh(geometry, material);
+      scene.add(sphere);
+
+      // 3. 加载纹理贴图
+      const rgbeLoader = new RGBELoader();
+
+      rgbeLoader.load("./abc1.hdr", (textureMap) => {
+        material.uniforms.uTexture.value = textureMap;
+        console.log("✅ 纹理贴图加载成功");
+      });
+
+      // 4. 加载 HDR 环境贴图
+      rgbeLoader.load("./abc1.hdr", (texture) => {
+        const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512);
+        cubeRenderTarget.fromEquirectangularTexture(renderer, texture);
+
+        material.uniforms.envMap.value = cubeRenderTarget.texture;
+        texture.dispose();
+
+        console.log("✅ 空间遮罩气泡 Shader 加载成功！");
+        console.log("🎭 特性：空间遮罩 + 局部纹理显示");
+      });
+
+      // 5. 动画循环
+      function animate() {
+        requestAnimationFrame(animate);
+        sphere.rotation.y += 0.006;
+        sphere.rotation.x += 0.003;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 窗口大小调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      // ========== 🎛️ 控制器事件监听 ==========
+
+      function bindSlider(sliderId, valueId, uniformName, decimals = 2) {
+        const slider = document.getElementById(sliderId);
+        const valueDisplay = document.getElementById(valueId);
+
+        slider.addEventListener("input", (e) => {
+          const value = parseFloat(e.target.value);
+          material.uniforms[uniformName].value = value;
+          valueDisplay.textContent = value.toFixed(decimals);
+        });
+
+        return slider;
+      }
+
+      // 空间遮罩参数
+      const maskThresholdSlider = bindSlider(
+        "maskThreshold",
+        "maskThresholdValue",
+        "uMaskThreshold",
+        2
+      );
+      const maskScaleSlider = bindSlider(
+        "maskScale",
+        "maskScaleValue",
+        "uMaskScale",
+        2
+      );
+      const maskSoftnessSlider = bindSlider(
+        "maskSoftness",
+        "maskSoftnessValue",
+        "uMaskSoftness",
+        2
+      );
+
+      // 原有参数
+      const edgeStartSlider = bindSlider(
+        "edgeStart",
+        "edgeStartValue",
+        "uEdgeStart",
+        2
+      );
+      const edgeEndSlider = bindSlider(
+        "edgeEnd",
+        "edgeEndValue",
+        "uEdgeEnd",
+        2
+      );
+      const textureStrengthSlider = bindSlider(
+        "textureStrength",
+        "textureStrengthValue",
+        "uTextureStrength",
+        2
+      );
+      const iridescenceStrengthSlider = bindSlider(
+        "iridescenceStrength",
+        "iridescenceStrengthValue",
+        "uIridescenceStrength",
+        2
+      );
+      const reflectionStrengthSlider = bindSlider(
+        "reflectionStrength",
+        "reflectionStrengthValue",
+        "uReflectionStrength",
+        2
+      );
+      const fresnelPowerSlider = bindSlider(
+        "fresnelPower",
+        "fresnelPowerValue",
+        "uFresnelPower",
+        2
+      );
+      const filmThicknessSlider = bindSlider(
+        "filmThickness",
+        "filmThicknessValue",
+        "uFilmThickness",
+        0
+      );
+      const centerAlphaSlider = bindSlider(
+        "centerAlpha",
+        "centerAlphaValue",
+        "uCenterAlpha",
+        2
+      );
+
+      // 重置按钮
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        const defaults = {
+          maskThreshold: 0.5,
+          maskScale: 3.0,
+          maskSoftness: 0.1,
+          edgeStart: 0.05,
+          edgeEnd: 0.6,
+          textureStrength: 0.6,
+          iridescenceStrength: 0.8,
+          reflectionStrength: 0.3,
+          fresnelPower: 1.8,
+          filmThickness: 300,
+          centerAlpha: 0.2,
+        };
+
+        material.uniforms.uMaskThreshold.value = defaults.maskThreshold;
+        material.uniforms.uMaskScale.value = defaults.maskScale;
+        material.uniforms.uMaskSoftness.value = defaults.maskSoftness;
+        material.uniforms.uEdgeStart.value = defaults.edgeStart;
+        material.uniforms.uEdgeEnd.value = defaults.edgeEnd;
+        material.uniforms.uTextureStrength.value = defaults.textureStrength;
+        material.uniforms.uIridescenceStrength.value =
+          defaults.iridescenceStrength;
+        material.uniforms.uReflectionStrength.value =
+          defaults.reflectionStrength;
+        material.uniforms.uFresnelPower.value = defaults.fresnelPower;
+        material.uniforms.uFilmThickness.value = defaults.filmThickness;
+        material.uniforms.uCenterAlpha.value = defaults.centerAlpha;
+
+        maskThresholdSlider.value = defaults.maskThreshold;
+        document.getElementById("maskThresholdValue").textContent =
+          defaults.maskThreshold.toFixed(2);
+
+        maskScaleSlider.value = defaults.maskScale;
+        document.getElementById("maskScaleValue").textContent =
+          defaults.maskScale.toFixed(2);
+
+        maskSoftnessSlider.value = defaults.maskSoftness;
+        document.getElementById("maskSoftnessValue").textContent =
+          defaults.maskSoftness.toFixed(2);
+
+        edgeStartSlider.value = defaults.edgeStart;
+        document.getElementById("edgeStartValue").textContent =
+          defaults.edgeStart.toFixed(2);
+
+        edgeEndSlider.value = defaults.edgeEnd;
+        document.getElementById("edgeEndValue").textContent =
+          defaults.edgeEnd.toFixed(2);
+
+        textureStrengthSlider.value = defaults.textureStrength;
+        document.getElementById("textureStrengthValue").textContent =
+          defaults.textureStrength.toFixed(2);
+
+        iridescenceStrengthSlider.value = defaults.iridescenceStrength;
+        document.getElementById("iridescenceStrengthValue").textContent =
+          defaults.iridescenceStrength.toFixed(2);
+
+        reflectionStrengthSlider.value = defaults.reflectionStrength;
+        document.getElementById("reflectionStrengthValue").textContent =
+          defaults.reflectionStrength.toFixed(2);
+
+        fresnelPowerSlider.value = defaults.fresnelPower;
+        document.getElementById("fresnelPowerValue").textContent =
+          defaults.fresnelPower.toFixed(2);
+
+        filmThicknessSlider.value = defaults.filmThickness;
+        document.getElementById("filmThicknessValue").textContent =
+          defaults.filmThickness.toFixed(0);
+
+        centerAlphaSlider.value = defaults.centerAlpha;
+        document.getElementById("centerAlphaValue").textContent =
+          defaults.centerAlpha.toFixed(2);
+
+        console.log("🔄 所有参数已重置为默认值");
+      });
+
+      // 预设按钮
+      document.getElementById("presetSparse").addEventListener("click", () => {
+        material.uniforms.uMaskThreshold.value = 0.7;
+        material.uniforms.uMaskScale.value = 3.0;
+        material.uniforms.uMaskSoftness.value = 0.15;
+
+        maskThresholdSlider.value = 0.7;
+        document.getElementById("maskThresholdValue").textContent = "0.70";
+        maskScaleSlider.value = 3.0;
+        document.getElementById("maskScaleValue").textContent = "3.00";
+        maskSoftnessSlider.value = 0.15;
+        document.getElementById("maskSoftnessValue").textContent = "0.15";
+
+        console.log("🎭 预设：稀疏分布");
+      });
+
+      document.getElementById("presetDense").addEventListener("click", () => {
+        material.uniforms.uMaskThreshold.value = 0.3;
+        material.uniforms.uMaskScale.value = 5.0;
+        material.uniforms.uMaskSoftness.value = 0.05;
+
+        maskThresholdSlider.value = 0.3;
+        document.getElementById("maskThresholdValue").textContent = "0.30";
+        maskScaleSlider.value = 5.0;
+        document.getElementById("maskScaleValue").textContent = "5.00";
+        maskSoftnessSlider.value = 0.05;
+        document.getElementById("maskSoftnessValue").textContent = "0.05";
+
+        console.log("🎭 预设：密集色块");
+      });
+
+      document.getElementById("presetBalance").addEventListener("click", () => {
+        document.getElementById("resetBtn").click();
+        console.log("⚖️ 预设：平衡模式");
+      });
+
+      document.getElementById("presetLarge").addEventListener("click", () => {
+        material.uniforms.uMaskThreshold.value = 0.5;
+        material.uniforms.uMaskScale.value = 1.5;
+        material.uniforms.uMaskSoftness.value = 0.2;
+
+        maskThresholdSlider.value = 0.5;
+        document.getElementById("maskThresholdValue").textContent = "0.50";
+        maskScaleSlider.value = 1.5;
+        document.getElementById("maskScaleValue").textContent = "1.50";
+        maskSoftnessSlider.value = 0.2;
+        document.getElementById("maskSoftnessValue").textContent = "0.20";
+
+        console.log("🎭 预设：大块区域");
+      });
+
+      console.log("\n🎛️ 空间遮罩气泡控制器已启用！");
+      console.log("   • 遮罩阈值：控制显示区域大小");
+      console.log("   • 遮罩缩放：控制色块密度");
+      console.log("   • 遮罩柔和度：控制边界硬度");
+    </script>
+  </body>
+</html>

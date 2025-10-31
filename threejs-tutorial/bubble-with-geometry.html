@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bubble with Geometry - 模拟美术模型</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #loading {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 18px;
+        z-index: 10;
+      }
+
+      #loading.hidden {
+        display: none;
+      }
+
+      #info {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 13px;
+        z-index: 10;
+        line-height: 1.8;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 15px;
+        border-radius: 8px;
+      }
+
+      #controls {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 13px;
+        z-index: 10;
+        max-width: 300px;
+      }
+
+      .control-group {
+        margin-bottom: 15px;
+      }
+
+      .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #00d9ff;
+      }
+
+      .control-group input[type="range"] {
+        width: 100%;
+      }
+
+      .control-group span {
+        margin-left: 10px;
+        color: #a855f7;
+        font-weight: bold;
+      }
+
+      button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Loading environment map...</div>
+    <div id="info">
+      🫧
+      <strong>使用Three.js几何体模拟美术模型</strong>
+      <br />
+      📦 方法：使用IcosahedronGeometry + 顶点修改
+      <br />
+      🎨 这就是美术提供模型后我们的使用方式
+      <br />
+      💡 可以替换为真实的.glb/.gltf模型
+    </div>
+
+    <div id="controls">
+      <h3 style="margin-bottom: 15px; color: #00d9ff; font-size: 16px">
+        模型控制
+      </h3>
+
+      <div class="control-group">
+        <label>细分等级 (Subdivision)</label>
+        <input
+          type="range"
+          id="subdivision"
+          min="1"
+          max="6"
+          step="1"
+          value="4"
+        />
+        <span id="subdivisionValue">4</span>
+      </div>
+
+      <div class="control-group">
+        <label>变形强度 (Deformation)</label>
+        <input
+          type="range"
+          id="deform"
+          min="0"
+          max="0.5"
+          step="0.01"
+          value="0.2"
+        />
+        <span id="deformValue">0.20</span>
+      </div>
+
+      <div class="control-group">
+        <label>动画速度 (Speed)</label>
+        <input type="range" id="speed" min="0" max="2" step="0.1" value="0.3" />
+        <span id="speedValue">0.3</span>
+      </div>
+
+      <div class="control-group">
+        <label>薄膜厚度 (Film Thickness)</label>
+        <input
+          type="range"
+          id="thickness"
+          min="200"
+          max="800"
+          step="10"
+          value="400"
+        />
+        <span id="thicknessValue">400</span>
+      </div>
+
+      <button id="regenerate">🔄 重新生成模型</button>
+      <button id="exportModel">💾 导出为GLB（模拟）</button>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Bubble Shader（薄膜材质）==========
+      const vertexShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec3 vWorldPosition;
+
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = position;
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `;
+
+      const fragmentShader = `
+        uniform vec3 uCameraPos;
+        uniform samplerCube envMap;
+        uniform float uTime;
+        uniform float uThickness;
+        
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec3 vWorldPosition;
+
+        const float PI = 3.14159265359;
+
+        // 薄膜干涉颜色
+        vec3 getThinFilmColor(float cosTheta, float thickness) {
+          const float n = 1.33;
+          float opticalPath = 2.0 * n * thickness * cosTheta;
+          
+          float phaseR = (2.0 * PI * opticalPath) / 650.0;
+          float phaseO = (2.0 * PI * opticalPath) / 610.0;
+          float phaseY = (2.0 * PI * opticalPath) / 580.0;
+          float phaseG = (2.0 * PI * opticalPath) / 550.0;
+          float phaseC = (2.0 * PI * opticalPath) / 490.0;
+          float phaseB = (2.0 * PI * opticalPath) / 450.0;
+          float phaseV = (2.0 * PI * opticalPath) / 420.0;
+          
+          float intensityR = pow(0.5 + 0.5 * cos(phaseR), 1.3);
+          float intensityO = pow(0.5 + 0.5 * cos(phaseO), 1.3);
+          float intensityY = pow(0.5 + 0.5 * cos(phaseY), 1.3);
+          float intensityG = pow(0.5 + 0.5 * cos(phaseG), 1.3);
+          float intensityC = pow(0.5 + 0.5 * cos(phaseC), 1.3);
+          float intensityB = pow(0.5 + 0.5 * cos(phaseB), 1.3);
+          float intensityV = pow(0.5 + 0.5 * cos(phaseV), 1.3);
+          
+          vec3 color = vec3(0.0);
+          color.r = intensityR * 1.0 + intensityO * 0.9 + intensityY * 0.6;
+          color.g = intensityY * 0.7 + intensityG * 1.0 + intensityC * 0.8;
+          color.b = intensityC * 0.7 + intensityB * 1.0 + intensityV * 0.9;
+          
+          float maxComponent = max(max(color.r, color.g), color.b);
+          if (maxComponent > 0.01) {
+            color = color / maxComponent;
+          }
+          
+          return color;
+        }
+
+        void main() {
+          vec3 viewDirection = normalize(uCameraPos - vWorldPosition);
+          vec3 normal = normalize(vNormal);
+          float NdotV = abs(dot(normal, viewDirection));
+          
+          // 菲涅尔效果
+          float fresnel = pow(1.0 - NdotV, 1.8);
+          
+          // 薄膜厚度变化
+          float thickness = uThickness + vPosition.y * 200.0 + sin(vPosition.x * 3.0 + uTime) * 50.0;
+          thickness = clamp(thickness, 200.0, 700.0);
+          
+          // 薄膜干涉颜色
+          vec3 iridescence = getThinFilmColor(NdotV, thickness);
+          float luminance = dot(iridescence, vec3(0.299, 0.587, 0.114));
+          iridescence = mix(vec3(luminance), iridescence, 2.0);
+          iridescence *= 2.5;
+          
+          // 环境反射
+          vec3 reflected = reflect(-viewDirection, normal);
+          vec3 envColor = textureCube(envMap, reflected).rgb;
+          
+          // 折射
+          vec3 refracted = refract(-viewDirection, normal, 1.0 / 1.33);
+          vec3 refractColor = vec3(0.0);
+          if (length(refracted) > 0.01) {
+            refractColor = textureCube(envMap, refracted).rgb;
+          }
+          
+          // 边缘遮罩
+          float edgeMask = smoothstep(0.15, 0.95, fresnel);
+          
+          // 颜色混合
+          vec3 edgeColor = mix(iridescence, envColor, fresnel * 0.2);
+          vec3 centerColor = refractColor * 1.5 + iridescence * 0.3 + envColor * 0.1;
+          vec3 finalColor = mix(centerColor, edgeColor, edgeMask);
+          
+          finalColor *= 1.8;
+          finalColor += envColor * 0.15;
+          
+          // 透明度
+          float alpha = edgeMask * 0.95 + (1.0 - edgeMask) * 0.25;
+          
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // ========== Scene Setup ==========
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 0, 4);
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 创建"美术模型" - 使用高细分几何体 ==========
+      let bubble = null;
+      let bubbleMaterial = null;
+      let currentSubdivision = 4;
+      let currentDeformation = 0.2;
+
+      function createBubbleGeometry(subdivision, deformation) {
+        // 使用IcosahedronGeometry（20面体）+ 高细分 = 平滑球体
+        // 这模拟了美术在3D软件中使用Subdivision Surface的效果
+        const geometry = new THREE.IcosahedronGeometry(1, subdivision);
+
+        // 修改顶点位置，创建不规则形状（模拟美术手工调整）
+        const positions = geometry.attributes.position;
+        const vertex = new THREE.Vector3();
+
+        for (let i = 0; i < positions.count; i++) {
+          vertex.fromBufferAttribute(positions, i);
+
+          // 模拟美术的变形：
+          // 1. 拉长Y轴（葫芦形）
+          vertex.y *= 1.5;
+
+          // 2. 腰部收缩
+          const waistFactor = 1.0 - 0.3 * Math.exp(-4.0 * vertex.y * vertex.y);
+          vertex.x *= waistFactor;
+          vertex.z *= waistFactor;
+
+          // 3. 添加有机变形（模拟美术手工调整顶点）
+          const noise =
+            Math.sin(vertex.x * 3 + vertex.y * 2) *
+            Math.cos(vertex.z * 2.5 + vertex.y * 1.5);
+          vertex.multiplyScalar(1.0 + noise * deformation);
+
+          // 4. 轻微不对称
+          vertex.x += Math.sin(vertex.y * 2) * deformation * 0.3;
+
+          positions.setXYZ(i, vertex.x, vertex.y, vertex.z);
+        }
+
+        // 重新计算法线（重要！影响光照）
+        geometry.computeVertexNormals();
+
+        return geometry;
+      }
+
+      function createBubbleMesh() {
+        // 移除旧模型
+        if (bubble) {
+          scene.remove(bubble);
+          bubble.geometry.dispose();
+        }
+
+        // 创建新几何体
+        const geometry = createBubbleGeometry(
+          currentSubdivision,
+          currentDeformation
+        );
+
+        // 创建薄膜材质
+        bubbleMaterial = new THREE.ShaderMaterial({
+          vertexShader: vertexShader,
+          fragmentShader: fragmentShader,
+          uniforms: {
+            uCameraPos: { value: camera.position },
+            envMap: { value: null },
+            uTime: { value: 0 },
+            uThickness: { value: 400 },
+          },
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+
+        bubble = new THREE.Mesh(geometry, bubbleMaterial);
+        scene.add(bubble);
+
+        console.log(
+          `✅ 模型创建成功！细分等级: ${currentSubdivision}, 顶点数: ${geometry.attributes.position.count}`
+        );
+      }
+
+      createBubbleMesh();
+
+      // ========== 控制面板 ==========
+      const subdivisionSlider = document.getElementById("subdivision");
+      const subdivisionValue = document.getElementById("subdivisionValue");
+      const deformSlider = document.getElementById("deform");
+      const deformValue = document.getElementById("deformValue");
+      const speedSlider = document.getElementById("speed");
+      const speedValue = document.getElementById("speedValue");
+      const thicknessSlider = document.getElementById("thickness");
+      const thicknessValue = document.getElementById("thicknessValue");
+      const regenerateBtn = document.getElementById("regenerate");
+      const exportBtn = document.getElementById("exportModel");
+
+      let animSpeed = 0.3;
+
+      subdivisionSlider.addEventListener("input", (e) => {
+        currentSubdivision = parseInt(e.target.value);
+        subdivisionValue.textContent = currentSubdivision;
+      });
+
+      deformSlider.addEventListener("input", (e) => {
+        currentDeformation = parseFloat(e.target.value);
+        deformValue.textContent = currentDeformation.toFixed(2);
+      });
+
+      speedSlider.addEventListener("input", (e) => {
+        animSpeed = parseFloat(e.target.value);
+        speedValue.textContent = animSpeed.toFixed(1);
+      });
+
+      thicknessSlider.addEventListener("input", (e) => {
+        const val = parseFloat(e.target.value);
+        if (bubbleMaterial) {
+          bubbleMaterial.uniforms.uThickness.value = val;
+        }
+        thicknessValue.textContent = val;
+      });
+
+      regenerateBtn.addEventListener("click", () => {
+        createBubbleMesh();
+        regenerateBtn.textContent = "✅ 已重新生成！";
+        setTimeout(() => {
+          regenerateBtn.textContent = "🔄 重新生成模型";
+        }, 2000);
+      });
+
+      exportBtn.addEventListener("click", () => {
+        alert(
+          "💡 提示：实际项目中，美术会使用Blender/C4D导出.glb文件\n" +
+            "前端使用GLTFLoader.load()加载，就像加载图片一样简单！\n" +
+            "当前顶点数: " +
+            bubble.geometry.attributes.position.count
+        );
+      });
+
+      // ========== Load HDR Environment ==========
+      const loadingDiv = document.getElementById("loading");
+      const rgbeLoader = new RGBELoader();
+
+      rgbeLoader.load(
+        "./studio_small_08_1k.hdr",
+        (texture) => {
+          const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512);
+          cubeRenderTarget.fromEquirectangularTexture(renderer, texture);
+
+          const envMap = cubeRenderTarget.texture;
+          if (bubbleMaterial) {
+            bubbleMaterial.uniforms.envMap.value = envMap;
+          }
+
+          texture.dispose();
+          loadingDiv.classList.add("hidden");
+
+          console.log("✅ Environment map loaded!");
+        },
+        undefined,
+        (error) => {
+          console.error("❌ HDR loading failed:", error);
+          loadingDiv.textContent = "Error loading environment map";
+        }
+      );
+
+      // ========== Animation Loop ==========
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const elapsedTime = clock.getElapsedTime();
+
+        // 旋转模型
+        if (bubble) {
+          bubble.rotation.y = elapsedTime * 0.2;
+          bubble.rotation.x = Math.sin(elapsedTime * 0.15) * 0.2;
+        }
+
+        // 更新shader时间
+        if (bubbleMaterial) {
+          bubbleMaterial.uniforms.uTime.value = elapsedTime * animSpeed;
+          bubbleMaterial.uniforms.uCameraPos.value.copy(camera.position);
+        }
+
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      // ========== Mouse Control ==========
+      let mouseX = 0;
+      let mouseY = 0;
+
+      document.addEventListener("mousemove", (e) => {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        camera.position.x += (mouseX * 2 - camera.position.x) * 0.05;
+        camera.position.y += (mouseY * 2 - camera.position.y) * 0.05;
+        camera.lookAt(scene.position);
+      });
+
+      // ========== Window Resize ==========
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      // ========== Console Info ==========
+      console.log(
+        "%c🫧 Bubble with Geometry - 模拟美术模型工作流",
+        "color: #00d9ff; font-size: 20px; font-weight: bold;"
+      );
+      console.log(
+        "%c📦 使用 IcosahedronGeometry + 顶点修改",
+        "color: #a855f7; font-size: 14px;"
+      );
+      console.log(
+        "%c💡 这就是使用.glb/.gltf模型的方式",
+        "color: #10b981; font-size: 14px;"
+      );
+      console.log(
+        "%c🎨 调整细分等级观察模型精度变化",
+        "color: #f59e0b; font-size: 14px;"
+      );
+    </script>
+  </body>
+</html>

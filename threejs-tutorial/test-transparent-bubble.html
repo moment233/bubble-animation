@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>测试透明气泡</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #000;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+        backdrop-filter: blur(10px);
+        z-index: 10;
+      }
+      .info h3 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+      }
+      .controls {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        font-size: 13px;
+        z-index: 10;
+        min-width: 280px;
+        max-height: 90vh;
+        overflow-y: auto;
+        backdrop-filter: blur(10px);
+      }
+      .controls h4 {
+        margin: 0 0 15px 0;
+        font-size: 14px;
+        color: #4fc3f7;
+      }
+      .control-group {
+        margin: 12px 0;
+      }
+      .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #ccc;
+      }
+      .control-group input[type="range"] {
+        width: 100%;
+      }
+      .control-group .value {
+        float: right;
+        color: #4fc3f7;
+      }
+      .control-group select {
+        width: 100%;
+        padding: 5px;
+        background: #333;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .control-group select:hover {
+        border-color: #4fc3f7;
+      }
+      .control-group button {
+        width: 48%;
+        padding: 8px;
+        background: #4fc3f7;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s ease;
+      }
+      .control-group button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+      .control-group button:nth-child(2) {
+        background: #81c784;
+        margin-left: 4%;
+      }
+      .control-group input[type="checkbox"] {
+        transform: scale(1.2);
+        vertical-align: middle;
+        margin-right: 8px;
+        cursor: pointer;
+      }
+      .control-group input[type="range"]:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h3>🫧 透明气泡</h3>
+      <p id="status">✅ 效果正常</p>
+      <p style="margin-top: 10px; font-size: 12px; opacity: 0.8">
+        💡 提示：
+        <br />
+        • 拖拽旋转查看
+        <br />
+        • Distortion 控制形变效果
+        <br />
+        • Float 控制漂浮动画
+        <br />
+        <br />
+        ⌨️ 快捷键：
+        <br />
+        • B = 气泡 | G = 玻璃球 | I = 彩虹色
+      </p>
+    </div>
+
+    <div class="controls">
+      <h4>⚙️ 材质参数</h4>
+
+      <div class="control-group">
+        <label>环境贴图</label>
+        <select id="hdr-select">
+          <option value="./little_paris_eiffel_tower_1k.hdr">埃菲尔铁塔</option>
+          <option value="./studio_small_03_1k.hdr">工作室</option>
+          <option value="./radial_ramp_01.hdr">径向渐变</option>
+          <option value="./rosendal_plains_2_1k.hdr">草原</option>
+          <option value="./abc4.hdr">夜晚</option>
+          <option value="./abc5.hdr">城市</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <button id="preset-bubble">🫧 气泡</button>
+        <button id="preset-glass">🔮 玻璃球</button>
+      </div>
+
+      <div class="control-group">
+        <label>
+          Transmission
+          <span class="value" id="transmission-value">1.05</span>
+        </label>
+        <input
+          type="range"
+          id="transmission"
+          min="0"
+          max="1.5"
+          step="0.01"
+          value="1.05"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Thickness
+          <span class="value" id="thickness-value">-0.50</span>
+        </label>
+        <input
+          type="range"
+          id="thickness"
+          min="-5"
+          max="5"
+          step="0.1"
+          value="-0.5"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          <input type="checkbox" id="iridescence-toggle" />
+          Iridescence (彩虹色)
+        </label>
+      </div>
+
+      <div class="control-group">
+        <label>
+          Iridescence Intensity
+          <span class="value" id="iridescence-value">1.00</span>
+        </label>
+        <input
+          type="range"
+          id="iridescence"
+          min="0"
+          max="1"
+          step="0.01"
+          value="1.0"
+          disabled
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          IOR (折射率)
+          <span class="value" id="ior-value">1.50</span>
+        </label>
+        <input
+          type="range"
+          id="ior"
+          min="1.0"
+          max="2.5"
+          step="0.01"
+          value="1.5"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Env Map Intensity
+          <span class="value" id="envmap-value">1.50</span>
+        </label>
+        <input
+          type="range"
+          id="envmap"
+          min="0"
+          max="10"
+          step="0.1"
+          value="1.5"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Clearcoat
+          <span class="value" id="clearcoat-value">1.00</span>
+        </label>
+        <input
+          type="range"
+          id="clearcoat"
+          min="0"
+          max="1"
+          step="0.01"
+          value="1.0"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Distortion (形变)
+          <span class="value" id="distortion-value">0.00</span>
+        </label>
+        <input
+          type="range"
+          id="distortion"
+          min="0"
+          max="1"
+          step="0.05"
+          value="0.0"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Float Intensity (漂浮)
+          <span class="value" id="float-value">0.00</span>
+        </label>
+        <input type="range" id="float" min="0" max="3" step="0.1" value="0.0" />
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/examples/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+      import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+      import SimplexNoise from "./SimplexNoise.js";
+
+      const statusEl = document.getElementById("status");
+      const simplex = new SimplexNoise();
+
+      // 场景
+      const scene = new THREE.Scene();
+
+      // 相机
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 3;
+
+      // 渲染器
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      document.body.appendChild(renderer.domElement);
+
+      // 控制器
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      // 创建球体
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      const positionAttributeBase = geometry.getAttribute("position").clone();
+
+      // 关键：MeshPhysicalMaterial 配置
+      const material = new THREE.MeshPhysicalMaterial({
+        transmission: 1.05,
+        thickness: -0.5,
+        roughness: 0,
+        metalness: 0,
+        ior: 1.5,
+        iridescence: 0,
+        iridescenceIOR: 1,
+        iridescenceThicknessRange: [0, 1200],
+        clearcoat: 1,
+        clearcoatRoughness: 0,
+        envMapIntensity: 1.5,
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
+
+      const sphere = new THREE.Mesh(geometry, material);
+      scene.add(sphere);
+
+      // 形变和漂浮参数
+      let distortionAmount = 0.0;
+      let floatIntensity = 0.0;
+      let floatSpeed = 0.5;
+
+      // ========== 形变动画函数 ==========
+      function updateDistortion(time) {
+        if (distortionAmount === 0) return;
+
+        const positionAttribute = geometry.getAttribute("position");
+        const vector = new THREE.Vector3();
+
+        for (let i = 0; i < positionAttributeBase.count; i++) {
+          vector.fromBufferAttribute(positionAttributeBase, i);
+
+          const noise = simplex.noise3d(
+            vector.x * 0.5,
+            vector.y * 0.5,
+            vector.z * 0.5 + time * 0.0005
+          );
+
+          const ratio = noise * distortionAmount + 1.0;
+          vector.multiplyScalar(ratio);
+
+          positionAttribute.setXYZ(i, vector.x, vector.y, vector.z);
+        }
+
+        positionAttribute.needsUpdate = true;
+        geometry.computeVertexNormals();
+      }
+
+      // ========== 漂浮动画函数 ==========
+      function updateFloat(time) {
+        if (floatIntensity === 0) return;
+
+        const t = time * floatSpeed * 0.001;
+
+        sphere.position.y = Math.sin(t) * floatIntensity * 0.5;
+        sphere.position.x = Math.cos(t * 0.7) * floatIntensity * 0.3;
+        sphere.position.z = Math.sin(t * 0.5) * floatIntensity * 0.2;
+      }
+
+      // HDR 加载函数
+      function loadHDR(path) {
+        statusEl.textContent = `🔄 加载 HDR: ${path.split("/").pop()}`;
+        const rgbeLoader = new RGBELoader();
+        rgbeLoader.load(
+          path,
+          (texture) => {
+            const pmremGenerator = new THREE.PMREMGenerator(renderer);
+            pmremGenerator.compileEquirectangularShader();
+            const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+
+            scene.environment = envMap;
+
+            texture.dispose();
+            pmremGenerator.dispose();
+
+            statusEl.textContent = `✅ HDR 已加载`;
+            console.log("✅ HDR 加载成功:", path);
+          },
+          undefined,
+          (error) => {
+            statusEl.textContent = `❌ HDR 加载失败`;
+            console.error(error);
+          }
+        );
+      }
+
+      // 初始加载
+      loadHDR("./little_paris_eiffel_tower_1k.hdr");
+
+      // ========== 控制器事件监听 ==========
+
+      // HDR 切换
+      document.getElementById("hdr-select").addEventListener("change", (e) => {
+        loadHDR(e.target.value);
+      });
+
+      // 预设：气泡
+      document.getElementById("preset-bubble").addEventListener("click", () => {
+        material.transmission = 1.05;
+        material.thickness = -0.5;
+        material.ior = 1.5;
+        material.envMapIntensity = 1.5;
+        material.clearcoat = 1;
+        material.iridescence = 1;
+        material.iridescenceIOR = 1;
+
+        document.getElementById("transmission").value = 1.05;
+        document.getElementById("transmission-value").textContent = "1.05";
+        document.getElementById("thickness").value = -0.5;
+        document.getElementById("thickness-value").textContent = "-0.50";
+        document.getElementById("ior").value = 1.5;
+        document.getElementById("ior-value").textContent = "1.50";
+        document.getElementById("envmap").value = 1.5;
+        document.getElementById("envmap-value").textContent = "1.50";
+        document.getElementById("clearcoat").value = 1;
+        document.getElementById("clearcoat-value").textContent = "1.00";
+        document.getElementById("iridescence-toggle").checked = true;
+        document.getElementById("iridescence").disabled = false;
+        document.getElementById("iridescence").value = 1;
+        document.getElementById("iridescence-value").textContent = "1.00";
+
+        console.log("🫧 气泡效果");
+      });
+
+      // 预设：玻璃球
+      document.getElementById("preset-glass").addEventListener("click", () => {
+        material.transmission = 1.0;
+        material.thickness = -1.5;
+        material.ior = 2.0;
+        material.envMapIntensity = 3.0;
+        material.clearcoat = 1;
+        material.iridescence = 0;
+
+        document.getElementById("transmission").value = 1.0;
+        document.getElementById("transmission-value").textContent = "1.00";
+        document.getElementById("thickness").value = -1.5;
+        document.getElementById("thickness-value").textContent = "-1.50";
+        document.getElementById("ior").value = 2.0;
+        document.getElementById("ior-value").textContent = "2.00";
+        document.getElementById("envmap").value = 3.0;
+        document.getElementById("envmap-value").textContent = "3.00";
+        document.getElementById("clearcoat").value = 1;
+        document.getElementById("clearcoat-value").textContent = "1.00";
+        document.getElementById("iridescence-toggle").checked = false;
+        document.getElementById("iridescence").disabled = true;
+
+        console.log("🔮 玻璃球效果");
+      });
+
+      // Transmission
+      document.getElementById("transmission").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("transmission-value").textContent =
+          value.toFixed(2);
+        material.transmission = value;
+      });
+
+      // Thickness
+      document.getElementById("thickness").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("thickness-value").textContent =
+          value.toFixed(2);
+        material.thickness = value;
+      });
+
+      // Iridescence Toggle
+      const iridescenceToggle = document.getElementById("iridescence-toggle");
+      const iridescenceSlider = document.getElementById("iridescence");
+
+      iridescenceToggle.addEventListener("change", (e) => {
+        const isEnabled = e.target.checked;
+        iridescenceSlider.disabled = !isEnabled;
+
+        if (isEnabled) {
+          const value = parseFloat(iridescenceSlider.value);
+          material.iridescence = value;
+        } else {
+          material.iridescence = 0;
+        }
+      });
+
+      // Iridescence Intensity
+      iridescenceSlider.addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("iridescence-value").textContent =
+          value.toFixed(2);
+
+        if (iridescenceToggle.checked) {
+          material.iridescence = value;
+        }
+      });
+
+      // IOR
+      document.getElementById("ior").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("ior-value").textContent = value.toFixed(2);
+        material.ior = value;
+      });
+
+      // Env Map Intensity
+      document.getElementById("envmap").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("envmap-value").textContent = value.toFixed(2);
+        material.envMapIntensity = value;
+      });
+
+      // Clearcoat
+      document.getElementById("clearcoat").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("clearcoat-value").textContent =
+          value.toFixed(2);
+        material.clearcoat = value;
+      });
+
+      // Distortion
+      document.getElementById("distortion").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("distortion-value").textContent =
+          value.toFixed(2);
+        distortionAmount = value;
+      });
+
+      // Float Intensity
+      document.getElementById("float").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("float-value").textContent = value.toFixed(2);
+        floatIntensity = value;
+      });
+
+      // 键盘快捷键
+      window.addEventListener("keydown", (e) => {
+        switch (e.key.toLowerCase()) {
+          case "b":
+            document.getElementById("preset-bubble").click();
+            break;
+          case "g":
+            document.getElementById("preset-glass").click();
+            break;
+          case "i":
+            iridescenceToggle.checked = !iridescenceToggle.checked;
+            iridescenceToggle.dispatchEvent(new Event("change"));
+            break;
+        }
+      });
+
+      // 动画循环
+      const clock = new THREE.Clock();
+      let time = 0;
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const deltaTime = clock.getDelta();
+        time += deltaTime * 1000;
+
+        // 更新形变
+        updateDistortion(time);
+
+        // 更新漂浮
+        updateFloat(time);
+
+        // 基础旋转（如果没有漂浮效果）
+        if (floatIntensity === 0) {
+          sphere.rotation.y += 0.01;
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 窗口调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      console.log("✅ 透明气泡已加载（完整版）");
+      console.log("⌨️ 快捷键: B=气泡 | G=玻璃球 | I=彩虹色");
+      console.log("🎨 功能: 形变 + 漂浮 + 彩虹色 + 环境贴图切换");
+      console.log("💡 提示: Distortion 形变会影响透明效果，建议从0开始慢慢调");
+    </script>
+  </body>
+</html>

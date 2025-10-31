@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three.js 纹理材质教学 - 10个渐进式Demo</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        padding: 40px 20px;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      header {
+        text-align: center;
+        color: white;
+        margin-bottom: 50px;
+      }
+      h1 {
+        font-size: 48px;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      .subtitle {
+        font-size: 20px;
+        opacity: 0.9;
+      }
+
+      .concept-box {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+      .concept-box h2 {
+        color: #667eea;
+        margin-bottom: 15px;
+        font-size: 28px;
+      }
+      .concept-box p {
+        font-size: 16px;
+        line-height: 1.8;
+        color: #333;
+        margin-bottom: 15px;
+      }
+      .concept-box ul {
+        margin-left: 25px;
+        margin-bottom: 15px;
+      }
+      .concept-box li {
+        margin-bottom: 10px;
+        line-height: 1.6;
+      }
+      .concept-box strong {
+        color: #764ba2;
+      }
+      .concept-box code {
+        background: #f4f4f4;
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #e74c3c;
+        font-family: "Courier New", monospace;
+      }
+
+      .demos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 30px;
+        margin-top: 30px;
+      }
+      .demo-card {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+      }
+      .demo-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+      }
+      .demo-card a {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+      }
+      .demo-number {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+        font-size: 48px;
+        font-weight: bold;
+      }
+      .demo-content {
+        padding: 25px;
+      }
+      .demo-title {
+        font-size: 22px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+      }
+      .demo-subtitle {
+        font-size: 14px;
+        color: #667eea;
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
+      .demo-description {
+        font-size: 15px;
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+      .demo-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .tag {
+        background: #f0f0f0;
+        color: #667eea;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      footer {
+        text-align: center;
+        color: white;
+        margin-top: 50px;
+        opacity: 0.8;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🎨 Three.js 纹理材质教学</h1>
+        <p class="subtitle">
+          从基础到高级 - 10个渐进式 Demo 带你掌握纹理和材质
+        </p>
+      </header>
+
+      <div class="concept-box">
+        <h2>📚 核心概念讲解</h2>
+
+        <h3 style="color: #667eea; margin-top: 20px">
+          1️⃣ 什么是纹理（Texture）？
+        </h3>
+        <p>
+          <strong>纹理就像给3D物体"贴墙纸"</strong>
+          。它是一张2D图片，被映射（包裹）到3D几何体的表面上。
+          纹理可以控制物体的颜色、粗糙度、凹凸、透明度等各种视觉属性。
+        </p>
+        <ul>
+          <li>
+            💡
+            <strong>颜色纹理</strong>
+            （Diffuse/Albedo Map）：定义物体表面的颜色
+          </li>
+          <li>
+            ✨
+            <strong>粗糙度纹理</strong>
+            （Roughness Map）：控制表面光滑程度（0=镜面，1=粗糙）
+          </li>
+          <li>
+            🔩
+            <strong>金属度纹理</strong>
+            （Metalness Map）：区分金属和非金属材质
+          </li>
+          <li>
+            🗺️
+            <strong>法线贴图</strong>
+            （Normal Map）：模拟表面凹凸细节（不增加几何复杂度）
+          </li>
+        </ul>
+
+        <h3 style="color: #667eea; margin-top: 20px">
+          2️⃣ 什么是材质（Material）？
+        </h3>
+        <p>
+          <strong>材质决定物体如何响应光照和渲染</strong>
+          。它是一组属性的集合，包括颜色、光泽、透明度、以及如何使用纹理。
+        </p>
+        <ul>
+          <li>
+            🎨
+            <code>MeshBasicMaterial</code>
+            - 基础材质，不受光照影响（纯色）
+          </li>
+          <li>
+            💎
+            <code>MeshStandardMaterial</code>
+            - 标准PBR材质，基于物理的渲染
+          </li>
+          <li>
+            🔬
+            <code>MeshPhysicalMaterial</code>
+            - 物理材质，支持高级效果（折射、透明）
+          </li>
+          <li>
+            🎭
+            <code>ShaderMaterial</code>
+            - 自定义着色器材质，完全可编程
+          </li>
+        </ul>
+
+        <h3 style="color: #667eea; margin-top: 20px">
+          3️⃣ 什么是环境贴图（Environment Map）？
+        </h3>
+        <p>
+          <strong>环境贴图是360度全景图，用来模拟物体周围的环境</strong>
+          。它有两个主要作用：
+        </p>
+        <ul>
+          <li>
+            🪞
+            <strong>反射</strong>
+            （Reflection）：金属/玻璃表面反射周围景物
+          </li>
+          <li>
+            💡
+            <strong>环境光照</strong>
+            （Image-Based Lighting）：提供真实的光照和阴影
+          </li>
+          <li>
+            🌊
+            <strong>折射</strong>
+            （Refraction）：透明物体内部的光线弯曲效果
+          </li>
+        </ul>
+        <p>
+          📸
+          <strong>HDR格式</strong>
+          （.hdr /
+          .exr）：高动态范围图片，包含更丰富的光照信息，比普通JPG/PNG效果更真实。
+        </p>
+
+        <h3 style="color: #667eea; margin-top: 20px">
+          4️⃣ 纹理在几何图形上的作用
+        </h3>
+        <p>
+          <strong>纹理通过UV坐标映射到几何体表面</strong>
+          。每个顶点都有UV坐标（U=横向0-1，V=纵向0-1），
+          告诉GPU如何从纹理图片中采样颜色并贴到该位置。
+        </p>
+        <ul>
+          <li>📐 立方体：6个面分别展开，每个面对应纹理的一部分</li>
+          <li>🌐 球体：像地球仪一样，将平面地图包裹成球形</li>
+          <li>🎯 自定义模型：3D建模软件（Blender/Maya）中手动展开UV</li>
+        </ul>
+      </div>
+
+      <h2
+        style="
+          color: white;
+          text-align: center;
+          margin-bottom: 30px;
+          font-size: 32px;
+        "
+      >
+        🚀 10个渐进式 Demo
+      </h2>
+
+      <div class="demos-grid">
+        <!-- Demo 1 -->
+        <div class="demo-card">
+          <a href="texture-demo-1-basic.html" target="_blank">
+            <div class="demo-number">01</div>
+            <div class="demo-content">
+              <div class="demo-title">基础纹理映射</div>
+              <div class="demo-subtitle">纹理是什么？</div>
+              <div class="demo-description">
+                学习如何将2D图片（HDR纹理）贴到3D立方体表面。
+                理解纹理映射的基本原理和
+                <code>map</code>
+                属性的作用。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">BoxGeometry</span>
+                <span class="tag">MeshBasicMaterial</span>
+                <span class="tag">map 属性</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 2 -->
+        <div class="demo-card">
+          <a href="texture-demo-2-multiple.html" target="_blank">
+            <div class="demo-number">02</div>
+            <div class="demo-content">
+              <div class="demo-title">多种纹理类型</div>
+              <div class="demo-subtitle">材质的多层控制</div>
+              <div class="demo-description">
+                同一张纹理用于多个通道：颜色贴图、粗糙度贴图、金属度贴图。
+                展示如何用纹理控制材质的不同物理属性。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">MeshStandardMaterial</span>
+                <span class="tag">roughnessMap</span>
+                <span class="tag">metalnessMap</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 2 Plus - 气泡 Shader -->
+        <div class="demo-card">
+          <a href="texture-demo-2-plus-shader.html" target="_blank">
+            <div class="demo-number">02+</div>
+            <div class="demo-content">
+              <div class="demo-title">气泡 Shader 🫧</div>
+              <div class="demo-subtitle">完整物理光学效果</div>
+              <div class="demo-description">
+                使用自定义 Shader
+                实现真实肥皂泡：菲涅耳效应、薄膜干涉、环境反射、折射、Beer-Lambert
+                吸收。 展示 Shader 的强大功能。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">ShaderMaterial</span>
+                <span class="tag">菲涅耳效应</span>
+                <span class="tag">薄膜干涉</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 2 Plus V2 - Voronoi 细胞气泡 -->
+        <div class="demo-card">
+          <a href="texture-demo-2-plus-voronoi.html" target="_blank">
+            <div
+              class="demo-number"
+              style="
+                background: linear-gradient(135deg, #8a2be2 0%, #ba55d3 100%);
+              "
+            >
+              02+ V2
+            </div>
+            <div class="demo-content">
+              <div class="demo-title">Voronoi 细胞气泡 🔷</div>
+              <div class="demo-subtitle">不规则分块效果</div>
+              <div class="demo-description">
+                使用 Voronoi
+                噪声创建细胞状色块分割效果，每个细胞有独立的薄膜厚度和颜色。
+                展示不规则、隔断式的纹理分布。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">Voronoi 噪声</span>
+                <span class="tag">细胞分块</span>
+                <span class="tag">色块边界</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 2 Plus V3 - 噪声流动气泡 -->
+        <div class="demo-card">
+          <a href="texture-demo-2-plus-noise.html" target="_blank">
+            <div
+              class="demo-number"
+              style="
+                background: linear-gradient(135deg, #20b2aa 0%, #40e0d0 100%);
+              "
+            >
+              02+ V3
+            </div>
+            <div class="demo-content">
+              <div class="demo-title">噪声流动气泡 🌊</div>
+              <div class="demo-subtitle">自然流动渐变</div>
+              <div class="demo-description">
+                使用多层 Simplex
+                噪声创建柔和的流动感效果，产生自然的渐变过渡和不均匀的纹理分布。
+                展示平滑、有机的变化。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">Simplex 噪声</span>
+                <span class="tag">多层叠加</span>
+                <span class="tag">柔和渐变</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 2 Plus V4 - 空间遮罩气泡 -->
+        <div class="demo-card">
+          <a href="texture-demo-2-plus-spatial-mask.html" target="_blank">
+            <div
+              class="demo-number"
+              style="
+                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+              "
+            >
+              02+ V4
+            </div>
+            <div class="demo-content">
+              <div class="demo-title">空间遮罩气泡 🎭</div>
+              <div class="demo-subtitle">局部纹理显示</div>
+              <div class="demo-description">
+                使用噪声遮罩打破旋转对称性，实现纹理只在局部区域显示。
+                解决"整个边缘圆环都有纹理"的问题，展示不连续分布效果。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">空间遮罩</span>
+                <span class="tag">局部显示</span>
+                <span class="tag">不连续分布</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 2 Plus V5 - Voronoi 空间选择气泡 -->
+        <div class="demo-card">
+          <a href="texture-demo-2-plus-spatial-voronoi.html" target="_blank">
+            <div
+              class="demo-number"
+              style="
+                background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+              "
+            >
+              02+ V5
+            </div>
+            <div class="demo-content">
+              <div class="demo-title">Voronoi 空间选择气泡 💎</div>
+              <div class="demo-subtitle">清晰色块边界</div>
+              <div class="demo-description">
+                使用 Voronoi
+                细胞选择策略，只显示部分细胞，实现清晰的几何色块边界。
+                更接近设计图中的隔断式效果。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">Voronoi 选择</span>
+                <span class="tag">清晰边界</span>
+                <span class="tag">设计图效果</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 3 -->
+        <div class="demo-card">
+          <a href="texture-demo-3-envmap.html" target="_blank">
+            <div class="demo-number">03</div>
+            <div class="demo-content">
+              <div class="demo-title">环境贴图反射</div>
+              <div class="demo-subtitle">镜子般的反射效果</div>
+              <div class="demo-description">
+                使用HDR环境贴图创建金属球，展示真实的环境反射效果。 学习
+                <code>PMREMGenerator</code>
+                和
+                <code>scene.environment</code>
+                。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">HDR</span>
+                <span class="tag">PMREMGenerator</span>
+                <span class="tag">环境反射</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Demo 4 -->
+        <div class="demo-card">
+          <a href="texture-demo-4-glass.html" target="_blank">
+            <div class="demo-number">04</div>
+            <div class="demo-content">
+              <div class="demo-title">玻璃球综合效果</div>
+              <div class="demo-subtitle">折射+反射+透明</div>
+              <div class="demo-description">
+                使用物理材质创建真实玻璃球：光线折射、表面反射、透明度、菲涅耳效应。
+                这是Three.js材质系统的最高级应用。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">MeshPhysicalMaterial</span>
+                <span class="tag">transmission</span>
+                <span class="tag">折射率 IOR</span>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <!-- 粒子爆炸 Demo -->
+        <div class="demo-card">
+          <a href="bubble-particle-explosion.html" target="_blank">
+            <div
+              class="demo-number"
+              style="
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+              "
+            >
+              💧
+            </div>
+            <div class="demo-content">
+              <div class="demo-title">气泡水花飞溅 💧</div>
+              <div class="demo-subtitle">交互式粒子系统</div>
+              <div class="demo-description">
+                5个彩色气泡球体 +
+                点击水花飞溅效果。2000个超密集粒子集中在底部向下飞溅，重力主导+侧向随机，2秒后球体重生。
+                展示粒子系统、点击检测、物理动画的综合应用。
+              </div>
+              <div class="demo-tags">
+                <span class="tag">粒子系统</span>
+                <span class="tag">Raycaster</span>
+                <span class="tag">物理模拟</span>
+                <span class="tag">水花效果</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <div class="concept-box" style="margin-top: 50px">
+        <h2>💡 学习建议</h2>
+        <ul style="margin-left: 0; list-style: none">
+          <li style="margin-bottom: 15px">
+            📖
+            <strong>按顺序学习</strong>
+            ：从 Demo 1 开始，逐步理解每个概念后再进入下一个
+          </li>
+          <li style="margin-bottom: 15px">
+            🔍
+            <strong>查看源代码</strong>
+            ：右键查看页面源代码，每个demo都有详细的中文注释
+          </li>
+          <li style="margin-bottom: 15px">
+            🎮
+            <strong>修改参数实验</strong>
+            ：尝试修改 metalness、roughness、transmission 等参数，观察效果变化
+          </li>
+          <li style="margin-bottom: 15px">
+            🌐
+            <strong>更换纹理</strong>
+            ：替换 abc1.hdr 为其他HDR文件或普通图片，看看效果如何不同
+          </li>
+          <li style="margin-bottom: 15px">
+            📚
+            <strong>深入学习</strong>
+            ：理解这些demo后，可以学习自定义着色器（Shader）创造更多效果
+          </li>
+        </ul>
+      </div>
+
+      <footer>
+        <p>🎈 Three.js 纹理材质教学 | 10个渐进式 Demo | 从基础到 Shader</p>
+        <p style="margin-top: 10px">
+          💻 打开浏览器控制台查看每个demo的详细日志输出
+        </p>
+        <p style="margin-top: 10px">
+          🔷 Voronoi 细胞气泡 | 🌊 噪声流动气泡 | 🎭 空间遮罩 | 💎 Voronoi 选择
+        </p>
+        <p
+          style="
+            margin-top: 10px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+          "
+        >
+          ⭐ 新增：空间遮罩技术 + 💧 水花飞溅效果（超密集粒子）
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

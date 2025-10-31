@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>气泡水花飞溅 Demo 💧</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+        cursor: crosshair;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 25px;
+        border-radius: 12px;
+        max-width: 400px;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 107, 107, 0.5);
+      }
+      .info h1 {
+        font-size: 26px;
+        margin-bottom: 15px;
+        color: #ff6b6b;
+        text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+      }
+      .info p {
+        font-size: 14px;
+        line-height: 1.8;
+        margin-bottom: 10px;
+        color: #ddd;
+      }
+      .info code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #00ff88;
+        font-family: "Courier New", monospace;
+      }
+      .highlight {
+        color: #ff6b6b;
+        font-weight: bold;
+      }
+      .stats {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: "Courier New", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h1>💧 气泡水花飞溅</h1>
+      <p>
+        <strong>点击任意气泡</strong>
+        ，触发水花飞溅效果！
+      </p>
+      <p>
+        ✨
+        <span class="highlight">5个彩色气泡</span>
+        悬浮在场景中
+      </p>
+      <p>
+        🖱️
+        <strong>鼠标悬停</strong>
+        ：球体放大高亮
+      </p>
+      <p>
+        💥
+        <strong>点击爆炸</strong>
+        ：
+        <br />
+        • 2000个超密集粒子水花飞溅
+        <br />
+        • 集中在底部向下飞溅
+        <br />
+        • 重力主导 + 侧向随机
+      </p>
+      <p>
+        🔄
+        <strong>自动重生</strong>
+        ：2秒后球体重新出现
+      </p>
+      <p style="margin-top: 15px; font-size: 12px; color: #888">
+        💡 提示：可以快速连续点击多个球体
+      </p>
+    </div>
+
+    <div class="stats" id="stats">
+      活跃粒子：0
+      <br />
+      爆炸次数：0
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Three.js 场景初始化 ==========
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 0, 8);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 气泡 Shader ==========
+      const bubbleVertexShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `;
+
+      const bubbleFragmentShader = `
+        uniform vec3 uCameraPos;
+        uniform samplerCube envMap;
+        uniform vec3 uBubbleColor;
+        uniform float uHoverScale;
+        
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        
+        const float PI = 3.14159265359;
+        
+        vec3 getThinFilmColor(float cosTheta, float thickness) {
+          float opticalPath = 2.0 * 1.33 * thickness * cosTheta;
+          
+          float phaseR = (2.0 * PI * opticalPath) / 650.0;
+          float phaseG = (2.0 * PI * opticalPath) / 550.0;
+          float phaseB = (2.0 * PI * opticalPath) / 450.0;
+          
+          vec3 color;
+          color.r = 0.5 + 0.5 * cos(phaseR);
+          color.g = 0.5 + 0.5 * cos(phaseG);
+          color.b = 0.5 + 0.5 * cos(phaseB);
+          
+          return color * uBubbleColor;
+        }
+        
+        void main() {
+          vec3 viewDirection = normalize(uCameraPos - vPosition);
+          vec3 normal = normalize(vNormal);
+          float NdotV = abs(dot(normal, viewDirection));
+          
+          float fresnel = pow(1.0 - NdotV, 2.0);
+          float edgeMask = smoothstep(0.3, 0.8, fresnel);
+          
+          float thickness = 300.0 + vNormal.y * 200.0;
+          vec3 iridescence = getThinFilmColor(NdotV, thickness);
+          
+          vec3 reflected = reflect(-viewDirection, normal);
+          vec3 envColor = textureCube(envMap, reflected).rgb;
+          
+          vec3 edgeColor = iridescence * 1.5 + envColor * fresnel * 0.3;
+          vec3 centerColor = vec3(0.0);
+          vec3 finalColor = mix(centerColor, edgeColor, edgeMask);
+          
+          // 悬停高亮
+          finalColor *= (1.0 + uHoverScale * 0.3);
+          
+          float alpha = edgeMask * 0.95 + (1.0 - edgeMask) * 0.1;
+          
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // ========== 创建5个气泡球体 ==========
+      const bubbles = [];
+      const bubblePositions = [
+        new THREE.Vector3(-4, 2, 0),
+        new THREE.Vector3(-2, -2, 0),
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(2, 2, 0),
+        new THREE.Vector3(4, -1, 0),
+      ];
+      const bubbleColors = [
+        new THREE.Color(1.0, 0.3, 0.3), // 红
+        new THREE.Color(0.3, 1.0, 0.3), // 绿
+        new THREE.Color(0.3, 0.3, 1.0), // 蓝
+        new THREE.Color(1.0, 1.0, 0.3), // 黄
+        new THREE.Color(1.0, 0.3, 1.0), // 紫
+      ];
+
+      function createBubble(position, color) {
+        const geometry = new THREE.SphereGeometry(0.8, 64, 64);
+        const material = new THREE.ShaderMaterial({
+          vertexShader: bubbleVertexShader,
+          fragmentShader: bubbleFragmentShader,
+          uniforms: {
+            uCameraPos: { value: camera.position },
+            envMap: { value: null },
+            uBubbleColor: { value: color },
+            uHoverScale: { value: 0.0 },
+          },
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.userData.originalPosition = position.clone();
+        mesh.userData.originalScale = 1.0;
+        mesh.userData.targetScale = 1.0;
+        mesh.userData.isExploding = false;
+        mesh.userData.respawnTime = 0;
+
+        return mesh;
+      }
+
+      // 加载环境贴图
+      const rgbeLoader = new RGBELoader();
+      rgbeLoader.load("./abc1.hdr", (texture) => {
+        const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512);
+        cubeRenderTarget.fromEquirectangularTexture(renderer, texture);
+
+        // 创建气泡
+        for (let i = 0; i < 5; i++) {
+          const bubble = createBubble(bubblePositions[i], bubbleColors[i]);
+          bubble.material.uniforms.envMap.value = cubeRenderTarget.texture;
+          bubbles.push(bubble);
+          scene.add(bubble);
+        }
+
+        texture.dispose();
+        console.log("✅ 5个气泡球体创建成功！");
+      });
+
+      // ========== 粒子系统 ==========
+      const particleSystems = [];
+      let explosionCount = 0;
+
+      class ParticleExplosion {
+        constructor(position, color, bubbleRadius) {
+          this.particleCount = 2000; // 增加到2000个粒子
+          this.positions = [];
+          this.velocities = [];
+          this.colors = [];
+          this.alphas = [];
+          this.sizes = [];
+
+          // 🌊 水花飞溅：集中在底部区域
+          for (let i = 0; i < this.particleCount; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            // 集中在下半球（60%-100%范围）
+            const phi = Math.PI * 0.5 + Math.random() * Math.PI * 0.5;
+
+            const x = bubbleRadius * Math.sin(phi) * Math.cos(theta);
+            const y = bubbleRadius * Math.sin(phi) * Math.sin(theta);
+            const z = bubbleRadius * Math.cos(phi);
+
+            this.positions.push(position.x + x, position.y + y, position.z + z);
+
+            // 💧 水滴速度：主要向下 + 随机侧向飞溅
+            const lateralSpeed = (Math.random() - 0.5) * 0.2;
+            const downwardSpeed = -0.08 - Math.random() * 0.15;
+            const forwardSpeed = (Math.random() - 0.5) * 0.15;
+
+            this.velocities.push(
+              new THREE.Vector3(lateralSpeed, downwardSpeed, forwardSpeed)
+            );
+
+            // 颜色：主要是白色/淡色（像水花）
+            const brightness = 0.8 + Math.random() * 0.2;
+            this.colors.push(
+              brightness * (0.9 + color.r * 0.1),
+              brightness * (0.9 + color.g * 0.1),
+              brightness * (0.9 + color.b * 0.1)
+            );
+
+            this.alphas.push(1.0);
+            this.sizes.push(1 + Math.random() * 2); // 超小粒子 1-3px
+          }
+
+          // 创建粒子几何体
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(this.positions, 3)
+          );
+          geometry.setAttribute(
+            "color",
+            new THREE.Float32BufferAttribute(this.colors, 3)
+          );
+          geometry.setAttribute(
+            "alpha",
+            new THREE.Float32BufferAttribute(this.alphas, 1)
+          );
+          geometry.setAttribute(
+            "size",
+            new THREE.Float32BufferAttribute(this.sizes, 1)
+          );
+
+          const material = new THREE.ShaderMaterial({
+            vertexShader: `
+              attribute float alpha;
+              attribute float size;
+              varying vec3 vColor;
+              varying float vAlpha;
+              
+              void main() {
+                vColor = color;
+                vAlpha = alpha;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+              }
+            `,
+            fragmentShader: `
+              varying vec3 vColor;
+              varying float vAlpha;
+              
+              void main() {
+                // 实心小点（不渐变）
+                vec2 center = gl_PointCoord - vec2(0.5);
+                float dist = length(center);
+                if (dist > 0.5) discard;
+                
+                // 直接使用透明度，不做径向渐变
+                gl_FragColor = vec4(vColor, vAlpha);
+              }
+            `,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            vertexColors: true,
+          });
+
+          this.points = new THREE.Points(geometry, material);
+          this.isAlive = true;
+          this.age = 0;
+        }
+
+        update(deltaTime) {
+          this.age += deltaTime;
+
+          const positionAttr = this.points.geometry.attributes.position;
+          const alphaAttr = this.points.geometry.attributes.alpha;
+
+          for (let i = 0; i < this.particleCount; i++) {
+            const i3 = i * 3;
+            const velocity = this.velocities[i];
+
+            // 💧 增强重力（水滴效果）
+            velocity.y -= 0.008;
+
+            // 更新位置
+            positionAttr.array[i3] += velocity.x;
+            positionAttr.array[i3 + 1] += velocity.y;
+            positionAttr.array[i3 + 2] += velocity.z;
+
+            // 衰减速度（更快衰减）
+            velocity.multiplyScalar(0.96);
+
+            // 透明度衰减（更快消失）
+            this.alphas[i] *= 0.95;
+            alphaAttr.array[i] = this.alphas[i];
+          }
+
+          positionAttr.needsUpdate = true;
+          alphaAttr.needsUpdate = true;
+
+          // 检查是否结束（缩短生命周期）
+          if (this.age > 2.5) {
+            this.isAlive = false;
+          }
+        }
+
+        destroy() {
+          scene.remove(this.points);
+          this.points.geometry.dispose();
+          this.points.material.dispose();
+        }
+      }
+
+      // ========== 鼠标交互 ==========
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      let hoveredBubble = null;
+
+      window.addEventListener("mousemove", (event) => {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(
+          bubbles.filter((b) => b.visible)
+        );
+
+        // 重置之前悬停的球体
+        if (
+          hoveredBubble &&
+          (!intersects.length || intersects[0].object !== hoveredBubble)
+        ) {
+          hoveredBubble.userData.targetScale = 1.0;
+          hoveredBubble.material.uniforms.uHoverScale.value = 0.0;
+          hoveredBubble = null;
+        }
+
+        // 悬停新球体
+        if (intersects.length > 0) {
+          hoveredBubble = intersects[0].object;
+          hoveredBubble.userData.targetScale = 1.2;
+          hoveredBubble.material.uniforms.uHoverScale.value = 1.0;
+        }
+      });
+
+      window.addEventListener("click", () => {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(
+          bubbles.filter((b) => b.visible)
+        );
+
+        if (intersects.length > 0) {
+          const bubble = intersects[0].object;
+
+          // 触发爆炸
+          explosionCount++;
+          const explosion = new ParticleExplosion(
+            bubble.position,
+            bubble.material.uniforms.uBubbleColor.value,
+            0.8
+          );
+          scene.add(explosion.points);
+          particleSystems.push(explosion);
+
+          // 隐藏球体
+          bubble.visible = false;
+          bubble.userData.isExploding = true;
+          bubble.userData.respawnTime = Date.now() + 2000; // 2秒后重生
+
+          console.log(
+            `💧 水花飞溅！粒子数：${explosion.particleCount}（超密集）`
+          );
+        }
+      });
+
+      // ========== 动画循环 ==========
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const deltaTime = clock.getDelta();
+
+        // 更新气泡动画
+        bubbles.forEach((bubble, index) => {
+          if (!bubble.userData.isExploding) {
+            // 浮动动画
+            bubble.position.y =
+              bubble.userData.originalPosition.y +
+              Math.sin(Date.now() * 0.001 + index) * 0.2;
+
+            // 平滑缩放
+            const currentScale = bubble.scale.x;
+            const targetScale = bubble.userData.targetScale;
+            bubble.scale.setScalar(
+              currentScale + (targetScale - currentScale) * 0.1
+            );
+          }
+
+          // 检查重生
+          if (
+            bubble.userData.isExploding &&
+            Date.now() > bubble.userData.respawnTime
+          ) {
+            bubble.userData.isExploding = false;
+            bubble.visible = true;
+            bubble.scale.setScalar(0.1);
+            bubble.userData.targetScale = 1.0;
+          }
+        });
+
+        // 更新粒子系统
+        for (let i = particleSystems.length - 1; i >= 0; i--) {
+          const ps = particleSystems[i];
+          ps.update(deltaTime);
+
+          if (!ps.isAlive) {
+            ps.destroy();
+            particleSystems.splice(i, 1);
+          }
+        }
+
+        // 更新统计
+        const activeParticles = particleSystems.reduce(
+          (sum, ps) => sum + ps.particleCount,
+          0
+        );
+        document.getElementById(
+          "stats"
+        ).innerHTML = `活跃粒子：${activeParticles}<br/>爆炸次数：${explosionCount}`;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 窗口大小调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      console.log("🎮 气泡粒子爆炸 Demo 启动！");
+      console.log("💡 点击任意气泡触发粒子爆炸");
+    </script>
+  </body>
+</html>

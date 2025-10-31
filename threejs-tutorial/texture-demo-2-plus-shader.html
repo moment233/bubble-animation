@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo 2 Plus: 气泡 Shader - 完整物理光学效果</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 25px;
+        border-radius: 12px;
+        max-width: 520px;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .info h1 {
+        font-size: 26px;
+        margin-bottom: 12px;
+        color: #00d9ff;
+        text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+      }
+      .info h2 {
+        font-size: 18px;
+        margin: 20px 0 10px;
+        color: #ffa500;
+        border-bottom: 1px solid rgba(255, 165, 0, 0.3);
+        padding-bottom: 5px;
+      }
+      .info h3 {
+        font-size: 16px;
+        margin: 15px 0 8px;
+        color: #00ff88;
+      }
+      .info p {
+        font-size: 14px;
+        line-height: 1.7;
+        margin-bottom: 10px;
+        color: #ddd;
+      }
+      .info code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #00ff88;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+      }
+      .info ul {
+        margin-left: 20px;
+        margin-bottom: 15px;
+      }
+      .info li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+        color: #ccc;
+      }
+      .highlight {
+        color: #00d9ff;
+        font-weight: bold;
+      }
+      .formula {
+        background: rgba(0, 217, 255, 0.1);
+        padding: 10px;
+        border-left: 3px solid #00d9ff;
+        margin: 10px 0;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        color: #00ff88;
+      }
+      .comparison {
+        background: rgba(255, 165, 0, 0.1);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 1px solid rgba(255, 165, 0, 0.3);
+      }
+      .comparison h3 {
+        color: #ffa500;
+        margin-top: 0;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(0, 217, 255, 0.5);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 217, 255, 0.8);
+      }
+
+      /* 控制面板样式 */
+      .controls-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 340px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        color: white;
+        max-height: 90vh;
+        overflow-y: auto;
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .controls-panel h2 {
+        font-size: 22px;
+        margin-bottom: 20px;
+        color: #00d9ff;
+        text-align: center;
+        text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+      }
+
+      .control-group {
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .control-group:last-of-type {
+        border-bottom: none;
+      }
+
+      .control-group h3 {
+        font-size: 16px;
+        color: #ffa500;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+      }
+
+      .control-group h3::before {
+        content: "▶";
+        margin-right: 8px;
+        font-size: 12px;
+      }
+
+      .control-item {
+        margin-bottom: 15px;
+      }
+
+      .control-item label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        font-size: 13px;
+        color: #ddd;
+      }
+
+      .control-item label span {
+        color: #00d9ff;
+        font-weight: bold;
+        font-family: "Courier New", monospace;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        outline: none;
+        -webkit-appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #00d9ff;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+        transition: all 0.2s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 15px rgba(0, 217, 255, 1);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #00d9ff;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .btn {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: inherit;
+      }
+
+      .btn-reset {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-reset:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .preset-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 15px;
+      }
+
+      .btn-preset {
+        padding: 8px;
+        background: rgba(0, 217, 255, 0.1);
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        color: #00d9ff;
+        font-size: 12px;
+      }
+
+      .btn-preset:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: #00d9ff;
+      }
+
+      .tip {
+        font-size: 11px;
+        color: #888;
+        margin-top: 3px;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h1>🫧 Demo 2 Plus: 气泡 Shader</h1>
+      <p>
+        <strong>升级版：</strong>
+        使用自定义 Shader 实现真实肥皂泡的完整物理光学效果。
+      </p>
+
+      <div class="comparison">
+        <h3>📊 与 Demo 2 的对比</h3>
+        <p><strong>Demo 2（标准材质）：</strong></p>
+        <ul>
+          <li>✅ 简单易用，Three.js 内置</li>
+          <li>✅ 自动处理光照计算</li>
+          <li>❌ 效果受限于材质类型</li>
+        </ul>
+        <p style="margin-top: 10px"><strong>Demo 2 Plus（Shader）：</strong></p>
+        <ul>
+          <li>✅ 完全自定义每个像素</li>
+          <li>✅ 实现复杂物理效果</li>
+          <li>✅ GPU 高性能计算</li>
+        </ul>
+      </div>
+
+      <h2>🎨 5 大核心光学效果</h2>
+
+      <h3>1️⃣ 菲涅耳效应 (Fresnel Effect)</h3>
+      <div class="formula">fresnel = pow(1.0 - NdotV, 1.8)</div>
+      <ul>
+        <li>
+          <strong>物理原理：</strong>
+          视角与法线夹角决定反射/透明比例
+        </li>
+        <li>
+          <strong>效果：</strong>
+          边缘亮（强反射），中心透明
+        </li>
+        <li>
+          <strong>实例：</strong>
+          湖面、玻璃窗、肥皂泡边缘
+        </li>
+      </ul>
+
+      <h3>2️⃣ 薄膜干涉 (Thin Film Interference)</h3>
+      <div class="formula">getThinFilmColor(cosθ, thickness)</div>
+      <ul>
+        <li>
+          <strong>物理原理：</strong>
+          光波在薄膜两侧反射后相互干涉
+        </li>
+        <li>
+          <strong>7色光谱：</strong>
+          红(650nm) 橙(610nm) 黄(580nm) 绿(550nm) 青(490nm) 蓝(450nm) 紫(420nm)
+        </li>
+        <li>
+          <strong>计算流程：</strong>
+          光程差 → 相位差 → 干涉强度 → RGB 混合
+        </li>
+        <li>
+          <strong>效果：</strong>
+          彩虹色随角度和厚度动态变化
+        </li>
+      </ul>
+
+      <h3>3️⃣ 环境反射 (Environment Reflection)</h3>
+      <div class="formula">
+        reflected = reflect(-viewDir, normal)
+        <br />
+        color = textureCube(envMap, reflected)
+      </div>
+      <ul>
+        <li>
+          <strong>作用：</strong>
+          球面反射周围 360° HDR 环境
+        </li>
+        <li>
+          <strong>效果：</strong>
+          像镜子一样映出周围景物和高光
+        </li>
+      </ul>
+
+      <h3>4️⃣ 折射 (Refraction)</h3>
+      <div class="formula">
+        refracted = refract(-viewDir, normal, 1.0/1.33)
+        <br />
+        color = textureCube(envMap, refracted)
+      </div>
+      <ul>
+        <li>
+          <strong>折射率 IOR：</strong>
+          1.33（肥皂水的物理值）
+        </li>
+        <li>
+          <strong>效果：</strong>
+          透过气泡看到弯曲扭曲的背景
+        </li>
+      </ul>
+
+      <h3>5️⃣ Beer-Lambert 吸收定律</h3>
+      <div class="formula">absorption = exp(-color * thickness * 0.2)</div>
+      <ul>
+        <li>
+          <strong>作用：</strong>
+          模拟光线穿过介质时的能量损失
+        </li>
+        <li>
+          <strong>效果：</strong>
+          气泡内部有轻微紫蓝色深度感
+        </li>
+      </ul>
+
+      <h2>🎯 Shader 优势</h2>
+      <ul>
+        <li>✅ 完全控制每个像素的颜色计算</li>
+        <li>✅ 实现标准材质无法做到的效果（薄膜干涉）</li>
+        <li>✅ GPU 并行计算，性能优异</li>
+        <li>✅ 可自由组合多种物理模型</li>
+      </ul>
+
+      <h2>🌈 视觉效果特征</h2>
+      <ul>
+        <li>
+          🎨
+          <strong>边缘纹理</strong>
+          ：显示 HDR 纹理贴图的颜色（60% 强度）
+        </li>
+        <li>
+          🌈
+          <strong>边缘彩虹</strong>
+          ：薄膜干涉彩虹色光环（80% 强度）
+        </li>
+        <li>
+          🪞
+          <strong>边缘反射</strong>
+          ：环境 HDR 高光（30% 强度）
+        </li>
+        <li>
+          ✨
+          <strong>边缘动态</strong>
+          ：颜色随旋转角度变化
+        </li>
+        <li>
+          ⚫
+          <strong>中心</strong>
+          ：透明的黑色（不反射背景）
+        </li>
+        <li>
+          🎭
+          <strong>整体</strong>
+          ：纹理+光学效果叠加，边缘丰富 vs 中心纯净
+        </li>
+      </ul>
+
+      <p style="margin-top: 20px; font-size: 12px; color: #888">
+        💡 提示：打开浏览器控制台查看详细的 Shader 代码和注释
+      </p>
+    </div>
+
+    <!-- 🎛️ 控制面板 -->
+    <div class="controls-panel">
+      <h2>🎛️ 实时参数调整</h2>
+
+      <!-- 边缘区域控制 -->
+      <div class="control-group">
+        <h3>边缘区域</h3>
+        <div class="control-item">
+          <label>
+            边缘起点
+            <span id="edgeStartValue">0.05</span>
+          </label>
+          <input
+            type="range"
+            id="edgeStart"
+            min="0"
+            max="0.5"
+            step="0.01"
+            value="0.05"
+          />
+          <div class="tip">值越小，纹理区域越大</div>
+        </div>
+        <div class="control-item">
+          <label>
+            边缘终点
+            <span id="edgeEndValue">0.60</span>
+          </label>
+          <input
+            type="range"
+            id="edgeEnd"
+            min="0.3"
+            max="1.0"
+            step="0.01"
+            value="0.6"
+          />
+          <div class="tip">控制边缘渐变宽度</div>
+        </div>
+      </div>
+
+      <!-- 效果强度控制 -->
+      <div class="control-group">
+        <h3>效果强度</h3>
+        <div class="control-item">
+          <label>
+            纹理强度
+            <span id="textureStrengthValue">0.60</span>
+          </label>
+          <input
+            type="range"
+            id="textureStrength"
+            min="0"
+            max="3"
+            step="0.1"
+            value="0.6"
+          />
+          <div class="tip">控制纹理贴图的可见程度</div>
+        </div>
+        <div class="control-item">
+          <label>
+            薄膜干涉强度
+            <span id="iridescenceStrengthValue">0.80</span>
+          </label>
+          <input
+            type="range"
+            id="iridescenceStrength"
+            min="0"
+            max="2"
+            step="0.1"
+            value="0.8"
+          />
+          <div class="tip">控制彩虹色的强度</div>
+        </div>
+        <div class="control-item">
+          <label>
+            环境反射强度
+            <span id="reflectionStrengthValue">0.30</span>
+          </label>
+          <input
+            type="range"
+            id="reflectionStrength"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.3"
+          />
+          <div class="tip">控制 HDR 高光的强度</div>
+        </div>
+      </div>
+
+      <!-- 光学参数 -->
+      <div class="control-group">
+        <h3>光学参数</h3>
+        <div class="control-item">
+          <label>
+            菲涅耳指数
+            <span id="fresnelPowerValue">1.80</span>
+          </label>
+          <input
+            type="range"
+            id="fresnelPower"
+            min="0.5"
+            max="5"
+            step="0.1"
+            value="1.8"
+          />
+          <div class="tip">控制边缘效应的锐利程度</div>
+        </div>
+        <div class="control-item">
+          <label>
+            薄膜厚度基础值
+            <span id="filmThicknessValue">300</span>
+          </label>
+          <input
+            type="range"
+            id="filmThickness"
+            min="100"
+            max="800"
+            step="10"
+            value="300"
+          />
+          <div class="tip">控制干涉颜色的基础波长</div>
+        </div>
+      </div>
+
+      <!-- 透明度控制 -->
+      <div class="control-group">
+        <h3>透明度</h3>
+        <div class="control-item">
+          <label>
+            中心透明度
+            <span id="centerAlphaValue">0.20</span>
+          </label>
+          <input
+            type="range"
+            id="centerAlpha"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.2"
+          />
+          <div class="tip">中心黑色区域的透明程度</div>
+        </div>
+      </div>
+
+      <!-- 按钮组 -->
+      <div class="button-group">
+        <button class="btn btn-reset" id="resetBtn">🔄 重置默认</button>
+      </div>
+
+      <!-- 预设按钮 -->
+      <div class="preset-buttons">
+        <button class="btn btn-preset" id="presetTexture">纹理突出</button>
+        <button class="btn btn-preset" id="presetRainbow">彩虹效果</button>
+        <button class="btn btn-preset" id="presetBalance">平衡模式</button>
+        <button class="btn btn-preset" id="presetGlow">边缘发光</button>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Three.js 基础设置 ==========
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 5;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 核心：气泡 Shader ==========
+
+      // 📝 顶点着色器 - 简单传递数据
+      const vertexShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec2 vUv;  // 🎨 UV 坐标（用于纹理采样）
+        
+        void main() {
+          // 传递法向量（用于光照计算）
+          vNormal = normalize(normalMatrix * normal);
+          
+          // 传递世界坐标位置
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vPosition = worldPosition.xyz;
+          
+          // 传递 UV 坐标
+          vUv = uv;
+          
+          // 计算屏幕位置
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `;
+
+      // 📝 片段着色器 - 复杂的物理光学计算
+      const fragmentShader = `
+        uniform vec3 uCameraPos;
+        uniform samplerCube envMap;
+        uniform sampler2D uTexture;  // 🎨 纹理贴图
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec2 vUv;  // 🎨 UV 坐标
+        
+        // 🎛️ 可控参数
+        uniform float uEdgeStart;
+        uniform float uEdgeEnd;
+        uniform float uTextureStrength;
+        uniform float uIridescenceStrength;
+        uniform float uReflectionStrength;
+        uniform float uFresnelPower;
+        uniform float uFilmThickness;
+        uniform float uCenterAlpha;
+        
+        const float PI = 3.14159265359;
+        
+        // ========== 函数：薄膜干涉颜色计算 ==========
+        // 参数：
+        //   cosTheta - 视角与法线夹角的余弦值
+        //   thickness - 薄膜厚度（纳米）
+        // 返回：RGB 干涉颜色
+        vec3 getThinFilmColor(float cosTheta, float thickness) {
+          // 1. 计算光程差（考虑折射率 1.33）
+          float opticalPath = 2.0 * 1.33 * thickness * cosTheta;
+          
+          // 2. 计算 7 种可见光的相位差（波长单位：纳米）
+          float phaseR = (2.0 * PI * opticalPath) / 650.0; // 红光
+          float phaseO = (2.0 * PI * opticalPath) / 610.0; // 橙光
+          float phaseY = (2.0 * PI * opticalPath) / 580.0; // 黄光
+          float phaseG = (2.0 * PI * opticalPath) / 550.0; // 绿光
+          float phaseC = (2.0 * PI * opticalPath) / 490.0; // 青光
+          float phaseB = (2.0 * PI * opticalPath) / 450.0; // 蓝光
+          float phaseV = (2.0 * PI * opticalPath) / 420.0; // 紫光
+          
+          // 3. 计算每种颜色的干涉强度
+          // cos(phase) 范围 [-1,1] → 映射到 [0,1]
+          // pow(x, 1.2) 增强对比度
+          float intensityR = pow(0.5 + 0.5 * cos(phaseR), 1.2);
+          float intensityO = pow(0.5 + 0.5 * cos(phaseO), 1.2);
+          float intensityY = pow(0.5 + 0.5 * cos(phaseY), 1.2);
+          float intensityG = pow(0.5 + 0.5 * cos(phaseG), 1.2);
+          float intensityC = pow(0.5 + 0.5 * cos(phaseC), 1.2);
+          float intensityB = pow(0.5 + 0.5 * cos(phaseB), 1.2);
+          float intensityV = pow(0.5 + 0.5 * cos(phaseV), 1.2);
+          
+          // 4. 将 7 种颜色混合成 RGB
+          vec3 color = vec3(0.0);
+          color.r = intensityR * 1.0 + intensityO * 0.9 + intensityY * 0.7;
+          color.g = intensityY * 0.8 + intensityG * 1.0 + intensityC * 0.9;
+          color.b = intensityC * 0.8 + intensityB * 1.0 + intensityV * 0.9;
+          
+          // 5. 归一化（防止颜色过亮）
+          color = color / max(max(color.r, color.g), max(color.b, 0.01));
+          
+          // 6. 增加饱和度（让颜色更鲜艳）
+          float luma = dot(color, vec3(0.299, 0.587, 0.114));
+          color = mix(vec3(luma), color, 1.8); // 1.8 = 饱和度系数
+          
+          return clamp(color, 0.0, 1.0);
+        }
+        
+        // ========== 主函数 - 像素颜色计算 ==========
+        void main() {
+          // === A. 基础向量计算 ===
+          vec3 viewDirection = normalize(uCameraPos - vPosition);
+          vec3 normal = normalize(vNormal);
+          float NdotV = abs(dot(normal, viewDirection));
+          
+          // === B. 菲涅耳效应 - 边缘检测 ===
+          // 正对（NdotV=1）→ fresnel=0（透明）
+          // 侧面（NdotV=0）→ fresnel=1（反射）
+          float fresnel = pow(1.0 - NdotV, uFresnelPower);
+          
+          // 边缘遮罩（用于混合不同效果）- 🎛️ 可控范围
+          float edgeMask = smoothstep(uEdgeStart, uEdgeEnd, fresnel);
+          
+          // === C. 薄膜干涉 - 彩虹色计算 ===
+          // 厚度变化：基础厚度 + 位置相关变化
+          float baseThickness = uFilmThickness; // 🎛️ 可控基础厚度
+          float angleVariation = vNormal.y * 400.0 + vNormal.x * 150.0;
+          float thickness = baseThickness + angleVariation;
+          
+          // 计算干涉颜色
+          vec3 iridescence = getThinFilmColor(NdotV, thickness);
+          iridescence *= 1.5; // 提亮 50%
+          
+          // === D. 环境反射 - HDR 环境贴图 ===
+          vec3 reflected = reflect(-viewDirection, normal);
+          vec3 envColor = textureCube(envMap, reflected).rgb;
+          
+          // === E. 折射 - 光线穿透 ===
+          // 1.0/1.33 = 空气进入肥皂水的折射率比
+          vec3 refracted = refract(-viewDirection, normal, 1.0 / 1.33);
+          vec3 refractColor = textureCube(envMap, refracted).rgb;
+          
+          // 处理全反射情况（折射向量为零）
+          if (dot(refracted, refracted) < 0.01) {
+            refractColor = vec3(0.0);
+          }
+          
+          // === F. Beer-Lambert 吸收定律 - 深度着色 ===
+          float bubbleThickness = (1.0 - NdotV) * 2.0;
+          vec3 absorptionColor = vec3(0.05, 0.04, 0.08); // 紫蓝色吸收
+          vec3 absorption = exp(-absorptionColor * bubbleThickness * 0.2);
+          vec3 transmittedColor = refractColor * absorption;
+          
+          // === G. 纹理采样 ===
+          // 🎨 从纹理贴图采样颜色
+          vec3 textureColor = texture2D(uTexture, vUv).rgb;
+          
+          // === H. 多层效果混合 ===
+          
+          // 边缘效果：纹理颜色 + 薄膜彩虹色 + 环境反射
+          // 混合策略：纹理作为基础色，叠加薄膜干涉和环境反射
+          vec3 edgeBase = textureColor * uTextureStrength;  // 🎛️ 纹理基础色
+          vec3 edgeIridescence = iridescence * uIridescenceStrength;  // 🎛️ 薄膜干涉
+          vec3 edgeReflection = envColor * fresnel * uReflectionStrength;  // 🎛️ 环境反射
+          
+          // 组合边缘效果
+          vec3 edgeColor = edgeBase + edgeIridescence + edgeReflection;
+          
+          // 🎯 中心效果：透明黑色
+          vec3 centerColor = vec3(0.0, 0.0, 0.0);  // 纯黑色
+          
+          // 根据边缘遮罩混合
+          // edgeMask 从 0（中心）到 1（边缘）
+          vec3 finalColor = mix(centerColor, edgeColor, edgeMask);
+          
+          // === I. 后处理（只对边缘区域应用） ===
+          
+          // 增强饱和度（只影响有颜色的边缘部分）
+          if (edgeMask > 0.1) {
+            float luminance = dot(finalColor, vec3(0.299, 0.587, 0.114));
+            finalColor = mix(vec3(luminance), finalColor, 1.4);  // 降低饱和度增强（1.6→1.4）
+            
+            // 提亮边缘
+            finalColor *= 1.2;  // 降低提亮（1.3→1.2）
+          }
+          
+          // === J. 透明度 ===
+          // 边缘不透明（保留效果），中心高度透明（🎛️ 可控）
+          float alpha = edgeMask * 0.95 + (1.0 - edgeMask) * uCenterAlpha;
+          
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // ========== 创建气泡材质 ==========
+
+      // 1. 创建球体几何体
+      const geometry = new THREE.SphereGeometry(1.8, 128, 128);
+
+      // 2. 创建 Shader 材质
+      const material = new THREE.ShaderMaterial({
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        uniforms: {
+          uCameraPos: { value: camera.position },
+          envMap: { value: null }, // 稍后加载环境贴图
+          uTexture: { value: null }, // 稍后加载纹理贴图
+
+          // 🎛️ 可控参数
+          uEdgeStart: { value: 0.05 },
+          uEdgeEnd: { value: 0.6 },
+          uTextureStrength: { value: 0.6 },
+          uIridescenceStrength: { value: 0.8 },
+          uReflectionStrength: { value: 0.3 },
+          uFresnelPower: { value: 1.8 },
+          uFilmThickness: { value: 300.0 },
+          uCenterAlpha: { value: 0.2 },
+        },
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+
+      const sphere = new THREE.Mesh(geometry, material);
+      scene.add(sphere);
+
+      // 3. 加载纹理贴图（HDR 作为颜色纹理）
+      const rgbeLoader = new RGBELoader();
+
+      // 🎨 先加载纹理贴图（用于边缘显示）
+      rgbeLoader.load("./abc1.hdr", (textureMap) => {
+        // 将 HDR 纹理赋值给 uTexture uniform
+        material.uniforms.uTexture.value = textureMap;
+        console.log("✅ 纹理贴图加载成功");
+      });
+
+      // 4. 加载 HDR 环境贴图（用于反射）
+      rgbeLoader.load("./abc1.hdr", (texture) => {
+        // 转换为 CubeMap 格式供 textureCube 使用
+        const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512);
+        cubeRenderTarget.fromEquirectangularTexture(renderer, texture);
+
+        material.uniforms.envMap.value = cubeRenderTarget.texture;
+        texture.dispose();
+
+        console.log("✅ Demo 2 Plus: 气泡 Shader 加载成功！");
+        console.log("📝 Shader 包含 6 大效果：");
+        console.log("   1. 纹理贴图 (Texture Mapping) - 边缘显示");
+        console.log("   2. 菲涅耳效应 (Fresnel)");
+        console.log("   3. 薄膜干涉 (Thin Film Interference)");
+        console.log("   4. 环境反射 (Environment Reflection)");
+        console.log("   5. 折射 (Refraction) - 仅用于计算");
+        console.log("   6. Beer-Lambert 吸收定律");
+        console.log("");
+        console.log("🎨 视觉特征：");
+        console.log("   边缘：纹理颜色 + 彩虹色光环 + 环境反射");
+        console.log("   中心：透明黑色");
+        console.log("   混合：纹理(60%) + 薄膜干涉(80%) + 环境反射(30%)");
+      });
+
+      // 5. 动画循环
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // 慢速旋转，展示不同角度的光学效果
+        sphere.rotation.y += 0.006;
+        sphere.rotation.x += 0.003;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 窗口大小调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      // ========== 🎛️ 控制器事件监听 ==========
+
+      // 辅助函数：绑定滑块事件
+      function bindSlider(sliderId, valueId, uniformName, decimals = 2) {
+        const slider = document.getElementById(sliderId);
+        const valueDisplay = document.getElementById(valueId);
+
+        slider.addEventListener("input", (e) => {
+          const value = parseFloat(e.target.value);
+          material.uniforms[uniformName].value = value;
+          valueDisplay.textContent = value.toFixed(decimals);
+        });
+
+        return slider;
+      }
+
+      // 1. 边缘区域控制
+      const edgeStartSlider = bindSlider(
+        "edgeStart",
+        "edgeStartValue",
+        "uEdgeStart",
+        2
+      );
+      const edgeEndSlider = bindSlider(
+        "edgeEnd",
+        "edgeEndValue",
+        "uEdgeEnd",
+        2
+      );
+
+      // 2. 效果强度控制
+      const textureStrengthSlider = bindSlider(
+        "textureStrength",
+        "textureStrengthValue",
+        "uTextureStrength",
+        2
+      );
+      const iridescenceStrengthSlider = bindSlider(
+        "iridescenceStrength",
+        "iridescenceStrengthValue",
+        "uIridescenceStrength",
+        2
+      );
+      const reflectionStrengthSlider = bindSlider(
+        "reflectionStrength",
+        "reflectionStrengthValue",
+        "uReflectionStrength",
+        2
+      );
+
+      // 3. 光学参数控制
+      const fresnelPowerSlider = bindSlider(
+        "fresnelPower",
+        "fresnelPowerValue",
+        "uFresnelPower",
+        2
+      );
+      const filmThicknessSlider = bindSlider(
+        "filmThickness",
+        "filmThicknessValue",
+        "uFilmThickness",
+        0
+      );
+
+      // 4. 透明度控制
+      const centerAlphaSlider = bindSlider(
+        "centerAlpha",
+        "centerAlphaValue",
+        "uCenterAlpha",
+        2
+      );
+
+      // 5. 重置按钮
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        const defaults = {
+          edgeStart: 0.05,
+          edgeEnd: 0.6,
+          textureStrength: 0.6,
+          iridescenceStrength: 0.8,
+          reflectionStrength: 0.3,
+          fresnelPower: 1.8,
+          filmThickness: 300,
+          centerAlpha: 0.2,
+        };
+
+        // 更新 uniforms
+        material.uniforms.uEdgeStart.value = defaults.edgeStart;
+        material.uniforms.uEdgeEnd.value = defaults.edgeEnd;
+        material.uniforms.uTextureStrength.value = defaults.textureStrength;
+        material.uniforms.uIridescenceStrength.value =
+          defaults.iridescenceStrength;
+        material.uniforms.uReflectionStrength.value =
+          defaults.reflectionStrength;
+        material.uniforms.uFresnelPower.value = defaults.fresnelPower;
+        material.uniforms.uFilmThickness.value = defaults.filmThickness;
+        material.uniforms.uCenterAlpha.value = defaults.centerAlpha;
+
+        // 更新滑块和显示值
+        edgeStartSlider.value = defaults.edgeStart;
+        document.getElementById("edgeStartValue").textContent =
+          defaults.edgeStart.toFixed(2);
+
+        edgeEndSlider.value = defaults.edgeEnd;
+        document.getElementById("edgeEndValue").textContent =
+          defaults.edgeEnd.toFixed(2);
+
+        textureStrengthSlider.value = defaults.textureStrength;
+        document.getElementById("textureStrengthValue").textContent =
+          defaults.textureStrength.toFixed(2);
+
+        iridescenceStrengthSlider.value = defaults.iridescenceStrength;
+        document.getElementById("iridescenceStrengthValue").textContent =
+          defaults.iridescenceStrength.toFixed(2);
+
+        reflectionStrengthSlider.value = defaults.reflectionStrength;
+        document.getElementById("reflectionStrengthValue").textContent =
+          defaults.reflectionStrength.toFixed(2);
+
+        fresnelPowerSlider.value = defaults.fresnelPower;
+        document.getElementById("fresnelPowerValue").textContent =
+          defaults.fresnelPower.toFixed(2);
+
+        filmThicknessSlider.value = defaults.filmThickness;
+        document.getElementById("filmThicknessValue").textContent =
+          defaults.filmThickness.toFixed(0);
+
+        centerAlphaSlider.value = defaults.centerAlpha;
+        document.getElementById("centerAlphaValue").textContent =
+          defaults.centerAlpha.toFixed(2);
+
+        console.log("🔄 所有参数已重置为默认值");
+      });
+
+      // 6. 预设按钮
+      document.getElementById("presetTexture").addEventListener("click", () => {
+        // 纹理突出：增强纹理，降低其他效果
+        material.uniforms.uTextureStrength.value = 1.5;
+        material.uniforms.uIridescenceStrength.value = 0.3;
+        material.uniforms.uReflectionStrength.value = 0.2;
+        material.uniforms.uEdgeStart.value = 0.0;
+        material.uniforms.uEdgeEnd.value = 0.7;
+
+        textureStrengthSlider.value = 1.5;
+        document.getElementById("textureStrengthValue").textContent = "1.50";
+        iridescenceStrengthSlider.value = 0.3;
+        document.getElementById("iridescenceStrengthValue").textContent =
+          "0.30";
+        reflectionStrengthSlider.value = 0.2;
+        document.getElementById("reflectionStrengthValue").textContent = "0.20";
+        edgeStartSlider.value = 0.0;
+        document.getElementById("edgeStartValue").textContent = "0.00";
+        edgeEndSlider.value = 0.7;
+        document.getElementById("edgeEndValue").textContent = "0.70";
+
+        console.log("🎨 预设：纹理突出");
+      });
+
+      document.getElementById("presetRainbow").addEventListener("click", () => {
+        // 彩虹效果：增强薄膜干涉，降低纹理
+        material.uniforms.uTextureStrength.value = 0.3;
+        material.uniforms.uIridescenceStrength.value = 1.5;
+        material.uniforms.uReflectionStrength.value = 0.4;
+        material.uniforms.uFilmThickness.value = 400.0;
+
+        textureStrengthSlider.value = 0.3;
+        document.getElementById("textureStrengthValue").textContent = "0.30";
+        iridescenceStrengthSlider.value = 1.5;
+        document.getElementById("iridescenceStrengthValue").textContent =
+          "1.50";
+        reflectionStrengthSlider.value = 0.4;
+        document.getElementById("reflectionStrengthValue").textContent = "0.40";
+        filmThicknessSlider.value = 400;
+        document.getElementById("filmThicknessValue").textContent = "400";
+
+        console.log("🌈 预设：彩虹效果");
+      });
+
+      document.getElementById("presetBalance").addEventListener("click", () => {
+        // 平衡模式：所有效果均衡（默认值）
+        document.getElementById("resetBtn").click();
+        console.log("⚖️ 预设：平衡模式（默认值）");
+      });
+
+      document.getElementById("presetGlow").addEventListener("click", () => {
+        // 边缘发光：强调反射和边缘
+        material.uniforms.uTextureStrength.value = 0.4;
+        material.uniforms.uIridescenceStrength.value = 0.6;
+        material.uniforms.uReflectionStrength.value = 0.8;
+        material.uniforms.uEdgeStart.value = 0.1;
+        material.uniforms.uEdgeEnd.value = 0.9;
+        material.uniforms.uFresnelPower.value = 3.0;
+
+        textureStrengthSlider.value = 0.4;
+        document.getElementById("textureStrengthValue").textContent = "0.40";
+        iridescenceStrengthSlider.value = 0.6;
+        document.getElementById("iridescenceStrengthValue").textContent =
+          "0.60";
+        reflectionStrengthSlider.value = 0.8;
+        document.getElementById("reflectionStrengthValue").textContent = "0.80";
+        edgeStartSlider.value = 0.1;
+        document.getElementById("edgeStartValue").textContent = "0.10";
+        edgeEndSlider.value = 0.9;
+        document.getElementById("edgeEndValue").textContent = "0.90";
+        fresnelPowerSlider.value = 3.0;
+        document.getElementById("fresnelPowerValue").textContent = "3.00";
+
+        console.log("✨ 预设：边缘发光");
+      });
+
+      console.log("\n🎛️ 交互控制器已启用！");
+      console.log("   • 使用右侧面板的滑块实时调整参数");
+      console.log("   • 点击预设按钮快速切换效果");
+      console.log("   • 点击重置按钮恢复默认值\n");
+    </script>
+  </body>
+</html>

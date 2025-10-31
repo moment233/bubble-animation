@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo 1: 基础纹理映射 - 纹理是什么？</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 400px;
+        backdrop-filter: blur(10px);
+      }
+      .info h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: #00d9ff;
+      }
+      .info h2 {
+        font-size: 18px;
+        margin: 15px 0 10px;
+        color: #ffa500;
+      }
+      .info p {
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 8px;
+      }
+      .info code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: #00ff88;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h1>🎨 Demo 1: 基础纹理映射</h1>
+      <p>
+        <strong>核心概念：</strong>
+        纹理就像给3D物体"贴墙纸"，将2D图片包裹到几何体表面。
+      </p>
+
+      <h2>代码解释</h2>
+      <p>
+        📦
+        <code>BoxGeometry</code>
+        - 创建立方体几何形状
+      </p>
+      <p>
+        🎨
+        <code>MeshBasicMaterial</code>
+        - 基础材质（不受光照影响）
+      </p>
+      <p>
+        🖼️
+        <code>map</code>
+        属性 - 设置颜色纹理贴图
+      </p>
+      <p>
+        📸
+        <code>RGBELoader</code>
+        - 加载 HDR 格式图片作为纹理
+      </p>
+
+      <h2>效果展示</h2>
+      <p>立方体的每个面都贴上了 abc1.hdr 图片，纹理会自动"展开"到6个面上。</p>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Three.js 基础设置 ==========
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 5;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 核心：纹理映射 ==========
+
+      // 1. 创建立方体几何体
+      const geometry = new THREE.BoxGeometry(2, 2, 2);
+
+      // 2. 加载 HDR 纹理
+      const rgbeLoader = new RGBELoader();
+      rgbeLoader.load("./abc2.hdr", (texture) => {
+        // HDR 纹理加载成功
+
+        // 3. 创建材质，将纹理应用到 map 属性
+        const material = new THREE.MeshBasicMaterial({
+          map: texture, // 🎯 关键：map 属性设置颜色纹理
+        });
+
+        // 4. 组合几何体和材质，创建网格
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+
+        // 5. 动画循环
+        function animate() {
+          requestAnimationFrame(animate);
+
+          // 旋转立方体，展示不同面的纹理
+          cube.rotation.x += 0.01;
+          cube.rotation.y += 0.01;
+
+          renderer.render(scene, camera);
+        }
+        animate();
+
+        console.log("✅ Demo 1: 纹理加载成功！");
+        console.log("📝 纹理映射原理：2D图片 → map属性 → 包裹到3D物体表面");
+      });
+
+      // 窗口大小调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+    </script>
+  </body>
+</html>

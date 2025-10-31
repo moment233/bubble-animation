@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rising Bubbles - Realistic Bubble Animation</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #loading {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 18px;
+        z-index: 10;
+      }
+
+      #loading.hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Loading environment map...</div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+      import SimplexNoise from "./SimplexNoise.js";
+
+      // Create simplex noise instance for vertex deformation
+      const simplex = new SimplexNoise();
+
+      // ========== Vertex Shader ==========
+      const vertexShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `;
+
+      // ========== Fragment Shader ==========
+      const fragmentShader = `
+        uniform vec3 uCameraPos;
+        uniform samplerCube envMap;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+
+        vec3 getThinFilmColor(float cosTheta, float thickness) {
+          const float PI = 3.14159265359;
+          float opticalPath = 2.0 * 1.33 * thickness * cosTheta;
+
+          float phaseR = (2.0 * PI * opticalPath) / 650.0;
+          float phaseG = (2.0 * PI * opticalPath) / 550.0;
+          float phaseB = (2.0 * PI * opticalPath) / 450.0;
+
+          vec3 color;
+          color.r = pow(0.5 + 0.5 * cos(phaseR), 1.2);
+          color.g = pow(0.5 + 0.5 * cos(phaseG), 1.2);
+          color.b = pow(0.5 + 0.5 * cos(phaseB), 1.2);
+
+          return color;
+        }
+
+        void main() {
+          vec3 viewDirection = normalize(uCameraPos - vPosition);
+          vec3 normal = normalize(vNormal);
+          float NdotV = abs(dot(normal, viewDirection));
+
+          float fresnel = pow(1.0 - NdotV, 1.8);
+
+          // 更平滑的厚度变化（减少法向量的影响）
+          float thickness = 350.0 + vNormal.y * 200.0 + vNormal.x * 80.0;  // 减少变化幅度
+          vec3 iridescence = getThinFilmColor(NdotV, thickness) * 2.0;  // 增强彩虹色 1.5 → 2.0
+
+          vec3 reflected = reflect(-viewDirection, normal);
+          vec3 envColor = textureCube(envMap, reflected).rgb;
+
+          vec3 refracted = refract(-viewDirection, normal, 1.0 / 1.33);
+          vec3 refractColor = textureCube(envMap, refracted).rgb;
+
+          float edgeMask = smoothstep(0.2, 0.95, fresnel);
+          
+          // 减少环境贴图权重，增强彩虹色
+          vec3 edgeColor = mix(iridescence, envColor, fresnel * 0.25);  // 0.6 → 0.25
+          vec3 centerColor = refractColor * 1.2 + envColor * 0.2;  // 3.0 → 1.2, 0.5 → 0.2
+
+          vec3 finalColor = mix(centerColor, edgeColor, edgeMask);
+
+          float luminance = dot(finalColor, vec3(0.299, 0.587, 0.114));
+          finalColor = mix(vec3(luminance), finalColor, 1.8);  // 增强饱和度 1.6 → 1.8
+          finalColor *= 2.2;  // 稍微提高亮度 2.0 → 2.2
+          finalColor += envColor * 0.3;  // 大幅减少环境光叠加 0.8 → 0.3
+
+          float alpha = edgeMask * 0.95 + (1.0 - edgeMask) * 0.4;
+
+          gl_FragColor = vec4(finalColor, alpha);
+        }
+      `;
+
+      // ========== Bubble Class ==========
+      class Bubble {
+        constructor(geometry, baseMaterial, camera) {
+          // Random size (0.8 - 1.5)
+          this.size = 0.3 + Math.random() * 0.3;
+
+          // Clone material for this bubble
+          this.material = baseMaterial.clone();
+          this.material.uniforms.uCameraPos = { value: camera.position };
+          this.material.uniforms.envMap = { value: null };
+
+          // Clone geometry for independent vertex deformation
+          this.geometry = geometry.clone();
+
+          // Store original vertex positions for deformation
+          const positions = this.geometry.attributes.position;
+          this.originalPositions = positions.array.slice();
+
+          // Create mesh
+          this.mesh = new THREE.Mesh(this.geometry, this.material);
+          this.mesh.scale.setScalar(this.size);
+
+          // Physical properties
+          this.speed = 0.3 + Math.random() * 0.5; // 0.3 - 0.8 units/sec
+          this.swingAmplitude = 0.5 + Math.random() * 1.0; // 0.5 - 1.5
+          this.swingFrequency = 0.5 + Math.random() * 1.5; // 0.5 - 2.0 Hz
+          this.rotationSpeed = 0.005 + Math.random() * 0.015; // 0.005 - 0.02
+          this.phase = Math.random() * Math.PI * 2; // 0 - 2π
+
+          // Starting position
+          this.startX = -4 + Math.random() * 8; // -4 to 4
+          this.mesh.position.set(this.startX, -6, 0);
+
+          // State
+          this.active = true;
+        }
+
+        update(deltaTime, elapsedTime) {
+          if (!this.active) return;
+
+          // Vertical rise
+          this.mesh.position.y += this.speed * deltaTime;
+
+          // Horizontal swing (sine wave)
+          this.mesh.position.x =
+            this.startX +
+            Math.sin(elapsedTime * this.swingFrequency + this.phase) *
+              this.swingAmplitude;
+
+          // Rotation
+          this.mesh.rotation.y += this.rotationSpeed;
+          this.mesh.rotation.x += this.rotationSpeed * 0.5;
+
+          // Vertex deformation using Simplex noise
+          const positions = this.geometry.attributes.position;
+          const time = elapsedTime;
+
+          for (let i = 0; i < positions.count; i++) {
+            const x = this.originalPositions[i * 3];
+            const y = this.originalPositions[i * 3 + 1];
+            const z = this.originalPositions[i * 3 + 2];
+
+            // Generate 3D Simplex noise - balanced for smooth deformation
+            const noise = simplex.noise3d(
+              x * 0.3 + time * 0.1,
+              y * 0.3 + time * 0.1,
+              z * 0.3
+            );
+
+            // Map noise from [-1, 1] to [0, 1] then scale
+            // This prevents continuous shrinking/growing
+            const normalizedNoise = noise * 0.5 + 0.5; // 0 to 1
+            const ratio = normalizedNoise * 0.4 + 0.8; // 0.8 to 1.2 - gentle deformation
+
+            // Apply deformation
+            positions.setXYZ(i, x * ratio, y * ratio, z * ratio);
+          }
+
+          positions.needsUpdate = true;
+          this.geometry.computeVertexNormals();
+
+          // Check if reached top boundary
+          if (this.mesh.position.y > 6) {
+            this.active = false;
+            this.speed = 0;
+          }
+        }
+
+        setEnvMap(envMap) {
+          this.material.uniforms.envMap.value = envMap;
+        }
+      }
+
+      // ========== Scene Setup ==========
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 10;
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.body.appendChild(renderer.domElement);
+
+      // ========== Shared Resources ==========
+      const sharedGeometry = new THREE.SphereGeometry(1, 64, 64);
+
+      const baseMaterial = new THREE.ShaderMaterial({
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        uniforms: {
+          uCameraPos: { value: camera.position },
+          envMap: { value: null },
+        },
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+
+      // ========== Create Bubbles ==========
+      const bubbles = [];
+      for (let i = 0; i < 6; i++) {
+        const bubble = new Bubble(sharedGeometry, baseMaterial, camera);
+        bubbles.push(bubble);
+        scene.add(bubble.mesh);
+      }
+
+      // ========== Load HDR Environment ==========
+      const loadingDiv = document.getElementById("loading");
+      const rgbeLoader = new RGBELoader();
+
+      rgbeLoader.load(
+        "./little_paris_eiffel_tower_1k.hdr",
+        (texture) => {
+          // Convert to CubeMap format
+          const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256);
+          cubeRenderTarget.fromEquirectangularTexture(renderer, texture);
+
+          const envMap = cubeRenderTarget.texture;
+
+          // Set environment map for all bubbles
+          bubbles.forEach((bubble) => {
+            bubble.setEnvMap(envMap);
+          });
+
+          // Clean up
+          texture.dispose();
+
+          // Hide loading indicator
+          loadingDiv.classList.add("hidden");
+
+          console.log("✅ Environment map loaded successfully!");
+        },
+        undefined,
+        (error) => {
+          console.error("❌ HDR loading failed:", error);
+          loadingDiv.textContent = "Error loading environment map";
+        }
+      );
+
+      // ========== Animation Loop ==========
+      const clock = new THREE.Clock();
+      let elapsedTime = 0;
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const deltaTime = clock.getDelta();
+        elapsedTime += deltaTime;
+
+        // Update all bubbles
+        bubbles.forEach((bubble) => {
+          bubble.update(deltaTime, elapsedTime);
+        });
+
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      // ========== Handle Window Resize ==========
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      // ========== Console Info ==========
+      console.log(
+        "%c🎈 Rising Bubbles Animation",
+        "color: #00d9ff; font-size: 20px; font-weight: bold;"
+      );
+      console.log("%cBubble count: 6", "color: #a855f7; font-size: 14px;");
+      console.log(
+        "%cSize range: 0.8 - 1.5",
+        "color: #a855f7; font-size: 14px;"
+      );
+      console.log(
+        "%cSpeed range: 0.3 - 0.8 units/sec",
+        "color: #a855f7; font-size: 14px;"
+      );
+    </script>
+  </body>
+</html>

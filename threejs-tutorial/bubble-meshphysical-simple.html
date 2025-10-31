@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeshPhysicalMaterial 气泡 - 简化版</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+        max-width: 400px;
+        z-index: 10;
+      }
+      .info h3 {
+        margin: 0 0 10px 0;
+        font-size: 16px;
+        color: #4fc3f7;
+      }
+      .info ul {
+        list-style: none;
+        padding: 0;
+      }
+      .info li {
+        margin: 5px 0;
+      }
+      .controls {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        font-size: 13px;
+        z-index: 10;
+        min-width: 250px;
+      }
+      .controls h4 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #4fc3f7;
+      }
+      .control-group {
+        margin: 10px 0;
+      }
+      .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #aaa;
+      }
+      .control-group input[type="range"] {
+        width: 100%;
+      }
+      .control-group .value {
+        float: right;
+        color: #4fc3f7;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h3>🫧 MeshPhysicalMaterial 气泡</h3>
+      <ul>
+        <li>✨ MeshPhysicalMaterial（官方物理材质）</li>
+        <li>🌈 onBeforeCompile 注入薄膜干涉</li>
+        <li>💎 transmission + ior 实现真实折射</li>
+        <li>🎨 保留完整的 PBR 渲染</li>
+      </ul>
+    </div>
+
+    <div class="controls">
+      <h4>⚙️ 材质参数</h4>
+
+      <div class="control-group">
+        <label>
+          Transmission
+          <span class="value" id="transmission-value">1.00</span>
+        </label>
+        <input
+          type="range"
+          id="transmission"
+          min="0"
+          max="1"
+          step="0.01"
+          value="1.0"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Thickness
+          <span class="value" id="thickness-value">0.50</span>
+        </label>
+        <input
+          type="range"
+          id="thickness"
+          min="0"
+          max="2"
+          step="0.05"
+          value="0.5"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          IOR (折射率)
+          <span class="value" id="ior-value">1.33</span>
+        </label>
+        <input
+          type="range"
+          id="ior"
+          min="1.0"
+          max="2.0"
+          step="0.01"
+          value="1.33"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Clearcoat
+          <span class="value" id="clearcoat-value">0.30</span>
+        </label>
+        <input
+          type="range"
+          id="clearcoat"
+          min="0"
+          max="1"
+          step="0.05"
+          value="0.3"
+        />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Iridescence Strength
+          <span class="value" id="iridescence-value">0.80</span>
+        </label>
+        <input
+          type="range"
+          id="iridescence"
+          min="0"
+          max="2"
+          step="0.1"
+          value="0.8"
+        />
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/examples/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+      import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+      const canvas = document.querySelector("#webgl");
+
+      // 场景设置
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const sizes = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
+
+      // 相机
+      const camera = new THREE.PerspectiveCamera(
+        60,
+        sizes.width / sizes.height,
+        0.1,
+        100
+      );
+      camera.position.set(0, 0, 8);
+
+      // 渲染器
+      const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true,
+      });
+      renderer.setSize(sizes.width, sizes.height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
+
+      // 轨道控制器
+      const controls = new OrbitControls(camera, canvas);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      // 薄膜干涉函数（将被注入到 shader 中）
+      const thinFilmShaderCode = `
+        // 薄膜干涉颜色计算函数（使用 Three.js 内置的 PI）
+        vec3 getThinFilmColor(float cosTheta, float thickness) {
+          // 光程差计算
+          float opticalPath = 2.0 * 1.33 * thickness * cosTheta;
+          
+          // 计算可见光谱的主要波长干涉
+          float phaseR = (2.0 * PI * opticalPath) / 650.0; // 红光
+          float phaseO = (2.0 * PI * opticalPath) / 610.0; // 橙光
+          float phaseY = (2.0 * PI * opticalPath) / 580.0; // 黄光
+          float phaseG = (2.0 * PI * opticalPath) / 550.0; // 绿光
+          float phaseC = (2.0 * PI * opticalPath) / 490.0; // 青光
+          float phaseB = (2.0 * PI * opticalPath) / 450.0; // 蓝光
+          float phaseV = (2.0 * PI * opticalPath) / 420.0; // 紫光
+          
+          // 干涉强度
+          float intensityR = pow(0.5 + 0.5 * cos(phaseR), 1.2);
+          float intensityO = pow(0.5 + 0.5 * cos(phaseO), 1.2);
+          float intensityY = pow(0.5 + 0.5 * cos(phaseY), 1.2);
+          float intensityG = pow(0.5 + 0.5 * cos(phaseG), 1.2);
+          float intensityC = pow(0.5 + 0.5 * cos(phaseC), 1.2);
+          float intensityB = pow(0.5 + 0.5 * cos(phaseB), 1.2);
+          float intensityV = pow(0.5 + 0.5 * cos(phaseV), 1.2);
+          
+          // 真实光谱颜色混合
+          vec3 color = vec3(0.0);
+          color.r = intensityR * 1.0 + intensityO * 0.9 + intensityY * 0.7;
+          color.g = intensityY * 0.8 + intensityG * 1.0 + intensityC * 0.9;
+          color.b = intensityC * 0.8 + intensityB * 1.0 + intensityV * 0.9;
+          
+          // 归一化
+          color = color / max(max(color.r, color.g), max(color.b, 0.01));
+          
+          // 增加饱和度
+          float luma = dot(color, vec3(0.299, 0.587, 0.114));
+          color = mix(vec3(luma), color, 1.8);
+          
+          return clamp(color, 0.0, 1.0);
+        }
+      `;
+
+      // ========== 创建气泡球体 ==========
+      const geometry = new THREE.SphereGeometry(2, 128, 128);
+
+      // ========== 关键：使用 MeshPhysicalMaterial ==========
+      const material = new THREE.MeshPhysicalMaterial({
+        transmission: 1.0, // 完全透明（启用体积折射）
+        thickness: 0.5, // 气泡薄膜厚度
+        roughness: 0.0, // 完全光滑表面
+        metalness: 0.0, // 非金属
+        ior: 1.33, // 折射率（肥皂泡 / 水）
+        envMapIntensity: 1.0, // 环境反射强度
+        clearcoat: 0.3, // 清漆层（额外反射）
+        clearcoatRoughness: 0.0, // 清漆光滑度
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+
+      let iridescenceStrength = 0.8;
+
+      // ========== 关键：onBeforeCompile 注入薄膜干涉 ==========
+      material.onBeforeCompile = (shader) => {
+        // 添加自定义 uniforms
+        shader.uniforms.uTime = { value: 0 };
+        shader.uniforms.uIridescenceStrength = { value: iridescenceStrength };
+
+        // 在 fragment shader 顶部声明自定义 uniforms
+        shader.fragmentShader =
+          `
+          uniform float uTime;
+          uniform float uIridescenceStrength;
+        ` + shader.fragmentShader;
+
+        // 注入薄膜干涉函数
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "void main() {",
+          thinFilmShaderCode + "\nvoid main() {"
+        );
+
+        // 在最终颜色输出前混合薄膜干涉颜色
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <opaque_fragment>",
+          `
+          #include <opaque_fragment>
+          
+          // 计算菲涅尔效果
+          vec3 viewDir = normalize(vViewPosition);
+          vec3 normalView = normalize(vNormal);
+          float NdotV = abs(dot(normalView, -viewDir));
+          float fresnel = pow(1.0 - NdotV, 1.8);
+          
+          // 动态厚度（基于法线和时间）
+          float thickness = 300.0 + vNormal.y * 400.0 
+                          + sin(vNormal.x * 2.0 + uTime * 0.5) * 100.0
+                          + cos(vNormal.z * 3.0 + uTime * 0.3) * 50.0;
+          
+          // 计算薄膜干涉颜色
+          vec3 iridescence = getThinFilmColor(NdotV, thickness);
+          
+          // 混合到输出颜色（边缘更强）
+          gl_FragColor.rgb += iridescence * fresnel * uIridescenceStrength;
+          `
+        );
+
+        // 保存 shader 引用以便更新 uniforms
+        material.userData.shader = shader;
+      };
+
+      const bubble = new THREE.Mesh(geometry, material);
+      scene.add(bubble);
+
+      // 加载 HDR 环境贴图
+      const rgbeLoader = new RGBELoader();
+      rgbeLoader.load(
+        "/abc1.hdr",
+        (texture) => {
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          scene.environment = texture;
+          material.envMap = texture;
+          material.needsUpdate = true;
+          console.log("✅ HDR 环境贴图加载成功");
+        },
+        undefined,
+        (error) => {
+          console.error("❌ HDR 加载失败:", error);
+        }
+      );
+
+      // 窗口调整
+      window.addEventListener("resize", () => {
+        sizes.width = window.innerWidth;
+        sizes.height = window.innerHeight;
+
+        camera.aspect = sizes.width / sizes.height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(sizes.width, sizes.height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      // ========== 参数控制 ==========
+      const transmissionSlider = document.getElementById("transmission");
+      const thicknessSlider = document.getElementById("thickness");
+      const iorSlider = document.getElementById("ior");
+      const clearcoatSlider = document.getElementById("clearcoat");
+      const iridescenceSlider = document.getElementById("iridescence");
+
+      transmissionSlider.addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("transmission-value").textContent =
+          value.toFixed(2);
+        material.transmission = value;
+      });
+
+      thicknessSlider.addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("thickness-value").textContent =
+          value.toFixed(2);
+        material.thickness = value;
+      });
+
+      iorSlider.addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("ior-value").textContent = value.toFixed(2);
+        material.ior = value;
+      });
+
+      clearcoatSlider.addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("clearcoat-value").textContent =
+          value.toFixed(2);
+        material.clearcoat = value;
+      });
+
+      iridescenceSlider.addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById("iridescence-value").textContent =
+          value.toFixed(2);
+        iridescenceStrength = value;
+        if (material.userData.shader) {
+          material.userData.shader.uniforms.uIridescenceStrength.value = value;
+        }
+      });
+
+      // ========== 动画循环 ==========
+      const clock = new THREE.Clock();
+
+      const tick = () => {
+        const currentTime = performance.now();
+
+        // 更新控制器
+        controls.update();
+
+        // 更新自定义 uniforms（时间）
+        if (material.userData.shader) {
+          material.userData.shader.uniforms.uTime.value = currentTime * 0.001;
+        }
+
+        // 可选：旋转气泡
+        bubble.rotation.y = currentTime * 0.0001;
+
+        renderer.render(scene, camera);
+        window.requestAnimationFrame(tick);
+      };
+
+      tick();
+    </script>
+  </body>
+</html>

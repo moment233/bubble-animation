@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three-Nebula 彩色粒子喷泉 - NPM版本</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #000;
+      }
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.8;
+        z-index: 10;
+        backdrop-filter: blur(10px);
+      }
+      .info h3 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        color: #4fc3f7;
+      }
+      .info .status {
+        color: #4caf50;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h3>💥 几何体粒子瓦解效果</h3>
+      <p>
+        🎯
+        <strong>点击几何体</strong>
+        查看瓦解效果
+      </p>
+      <p>🌊 从点击位置向外波纹扩散</p>
+      <p>🌈 彩色粒子自动变化</p>
+      <p>♻️ 瓦解后自动重新生成</p>
+      <p style="margin-top: 10px">
+        <span class="status">✅ Three-Nebula 粒子系统</span>
+      </p>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "threejs-tutorial",
+  "version": "1.0.0",
+  "description": "Three.js 从入门到气泡 - 15步实战教程",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -p 3000",
+    "dev": "npx serve -p 3000"
+  },
+  "keywords": [
+    "three.js",
+    "webgl",
+    "shader",
+    "bubble",
+    "tutorial"
+  ],
+  "author": "",
+  "license": "MIT"
+}

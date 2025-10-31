@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo 3: 环境贴图反射 - 镜子般的反射效果</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 450px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .info h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: #00d9ff;
+      }
+      .info h2 {
+        font-size: 18px;
+        margin: 15px 0 10px;
+        color: #ffa500;
+      }
+      .info p {
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 8px;
+      }
+      .info code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: #00ff88;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h1>🌍 Demo 3: 环境贴图反射</h1>
+      <p>
+        <strong>核心概念：</strong>
+        环境贴图让物体像镜子一样反射周围的环境，创造真实的金属/玻璃质感。
+      </p>
+
+      <h2>环境贴图原理</h2>
+      <p>
+        🌐
+        <code>HDR 环境贴图</code>
+        - 360度全景图，记录周围环境的光照和颜色
+      </p>
+      <p>
+        🔄
+        <code>PMREMGenerator</code>
+        - 预处理环境贴图，生成不同粗糙度的版本
+      </p>
+      <p>
+        ✨
+        <code>scene.environment</code>
+        - 自动应用到所有 PBR 材质
+      </p>
+
+      <h2>材质参数</h2>
+      <p>
+        🔩
+        <code>metalness: 1.0</code>
+        - 完全金属（高反射）
+      </p>
+      <p>
+        ✨
+        <code>roughness: 0.1</code>
+        - 非常光滑（清晰反射）
+      </p>
+      <p>
+        🎨
+        <code>envMapIntensity: 1.5</code>
+        - 环境反射强度
+      </p>
+
+      <h2>效果展示</h2>
+      <p>
+        金属球表面清晰地反射了 HDR
+        环境贴图的内容。旋转时可以看到环境在球面上的动态反射。
+      </p>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Three.js 基础设置 ==========
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000);
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 5;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping; // HDR 色调映射
+      renderer.toneMappingExposure = 1.0;
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 核心：环境贴图反射 ==========
+
+      // 1. 创建球体几何体（高分段数，反射更清晰）
+      const geometry = new THREE.SphereGeometry(1.8, 128, 128);
+
+      // 2. 创建金属材质
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff, // 白色（保留环境色彩）
+        metalness: 1.0, // 🔩 完全金属质感
+        roughness: 0.1, // ✨ 非常光滑，清晰反射
+        envMapIntensity: 1.5, // 🌟 增强环境反射
+      });
+
+      const sphere = new THREE.Mesh(geometry, material);
+      scene.add(sphere);
+
+      // 3. 加载 HDR 环境贴图
+      const rgbeLoader = new RGBELoader();
+      rgbeLoader.load("./abc2.hdr", (texture) => {
+        // 🎯 关键步骤：使用 PMREMGenerator 处理 HDR 纹理
+        // PMREM = Pre-filtered Mipmap Radiance Environment Map
+        // 为不同粗糙度预生成模糊版本
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        // 将全景图转换为环境贴图
+        const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+
+        // 🌍 设置场景环境（自动应用到所有 Standard/Physical 材质）
+        scene.environment = envMap;
+
+        // 可选：也设置为背景（这里我们保持黑色背景突出反射）
+        // scene.background = envMap;
+
+        // 清理资源
+        texture.dispose();
+        pmremGenerator.dispose();
+
+        console.log("✅ Demo 3: 环境贴图加载成功！");
+        console.log("📝 环境贴图工作流程：");
+        console.log("   1. 加载 HDR 全景图（360度环境信息）");
+        console.log("   2. PMREMGenerator 预处理（生成多级模糊版本）");
+        console.log("   3. scene.environment 设置（自动反射到材质）");
+      });
+
+      // 4. 动画循环
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // 慢速旋转，展示环境反射的动态变化
+        sphere.rotation.y += 0.008;
+        sphere.rotation.x += 0.003;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 窗口大小调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+    </script>
+  </body>
+</html>

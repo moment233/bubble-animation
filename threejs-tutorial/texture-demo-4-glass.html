@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo 4: 玻璃球综合效果 - 折射+反射+透明</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: linear-gradient(
+          135deg,
+          #0f2027 0%,
+          #203a43 50%,
+          #2c5364 100%
+        );
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      .info {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 480px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .info h1 {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: #00d9ff;
+      }
+      .info h2 {
+        font-size: 18px;
+        margin: 15px 0 10px;
+        color: #ffa500;
+      }
+      .info p {
+        font-size: 14px;
+        line-height: 1.6;
+        margin-bottom: 8px;
+      }
+      .info code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: #00ff88;
+      }
+      .highlight {
+        color: #00ff88;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="info">
+      <h1>💎 Demo 4: 玻璃球综合效果</h1>
+      <p>
+        <strong>核心概念：</strong>
+        真实玻璃材质需要结合多种光学效果：折射（看穿内部）、反射（表面镜面）、透明度。
+      </p>
+
+      <h2>物理材质参数</h2>
+      <p>
+        🔬
+        <code>MeshPhysicalMaterial</code>
+        - Three.js 最高级的物理材质
+      </p>
+      <p>
+        🌊
+        <code>transmission: 1.0</code>
+        -
+        <span class="highlight">透射/折射</span>
+        （光线穿透）
+      </p>
+      <p>
+        📏
+        <code>thickness: 1.0</code>
+        - 材质厚度（影响折射程度）
+      </p>
+      <p>
+        ✨
+        <code>roughness: 0.0</code>
+        - 完全光滑（玻璃表面）
+      </p>
+      <p>
+        💧
+        <code>ior: 1.5</code>
+        - 折射率（1.5 = 玻璃的物理值）
+      </p>
+
+      <h2>光学效果组合</h2>
+      <p>
+        🔄
+        <span class="highlight">折射</span>
+        ：光线弯曲穿透玻璃，可以看到背后扭曲的环境
+      </p>
+      <p>
+        🪞
+        <span class="highlight">反射</span>
+        ：玻璃表面镜面反射周围环境
+      </p>
+      <p>
+        ✨
+        <span class="highlight">菲涅耳效应</span>
+        ：边缘反射更强，中心更透明
+      </p>
+
+      <h2>效果展示</h2>
+      <p>
+        玻璃球中心可以看穿背后的环境（折射），边缘有强烈的反射光泽。随着角度变化，透明度和反射比例动态改变。
+      </p>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+      // ========== Three.js 基础设置 ==========
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.z = 5;
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+      document.body.appendChild(renderer.domElement);
+
+      // ========== 添加背景物体（用于展示折射效果） ==========
+      // 在玻璃球后面放一个彩色立方体，可以透过玻璃球看到它被折射扭曲
+      const bgGeometry = new THREE.BoxGeometry(3, 3, 3);
+      const bgMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff6b35,
+        metalness: 0.5,
+        roughness: 0.3,
+      });
+      const bgCube = new THREE.Mesh(bgGeometry, bgMaterial);
+      bgCube.position.z = -3;
+      scene.add(bgCube);
+
+      // ========== 核心：玻璃球材质 ==========
+
+      // 1. 创建球体几何体
+      const geometry = new THREE.SphereGeometry(1.5, 128, 128);
+
+      // 2. 创建物理材质（玻璃）
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff, // 基础颜色：白色（不影响透明/反射）
+
+        // 🌊 透射属性（关键！让玻璃透明并折射）
+        transmission: 1.0, // 完全透射（光线穿透）
+        thickness: 1.0, // 材质厚度（影响折射强度）
+
+        // ✨ 表面属性
+        roughness: 0.0, // 完全光滑（玻璃表面）
+        metalness: 0.0, // 非金属（玻璃是电介质）
+
+        // 🔬 物理参数
+        ior: 1.5, // 折射率 Index of Refraction（1.5 = 玻璃）
+        reflectivity: 0.5, // 反射率
+
+        // 🌟 环境映射
+        envMapIntensity: 1.5, // 环境反射强度
+
+        // 🎨 其他
+        clearcoat: 1.0, // 清漆层（增强表面光泽）
+        clearcoatRoughness: 0.0, // 清漆粗糙度
+      });
+
+      const glassSphere = new THREE.Mesh(geometry, material);
+      scene.add(glassSphere);
+
+      // 3. 加载环境贴图
+      const rgbeLoader = new RGBELoader();
+      rgbeLoader.load("./abc2.hdr", (texture) => {
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+
+        // 设置场景环境（用于反射和折射）
+        scene.environment = envMap;
+        scene.background = envMap; // 这次也设置背景，增强效果
+
+        texture.dispose();
+        pmremGenerator.dispose();
+
+        console.log("✅ Demo 4: 玻璃材质加载成功！");
+        console.log("📝 玻璃球的物理效果：");
+        console.log("   - Transmission (透射): 光线穿透玻璃");
+        console.log("   - Refraction (折射): 光线弯曲，背景物体扭曲");
+        console.log("   - Reflection (反射): 表面镜面反射环境");
+        console.log("   - Fresnel (菲涅耳): 边缘反射强，中心透明");
+        console.log(
+          "💡 IOR=1.5 是玻璃的真实折射率（空气=1.0，水=1.33，钻石=2.42）"
+        );
+      });
+
+      // 添加灯光
+      const light = new THREE.DirectionalLight(0xffffff, 1.0);
+      light.position.set(5, 5, 5);
+      scene.add(light);
+
+      // 4. 动画循环
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // 旋转玻璃球和背景立方体
+        glassSphere.rotation.y += 0.005;
+        glassSphere.rotation.x += 0.002;
+
+        bgCube.rotation.x += 0.003;
+        bgCube.rotation.y += 0.004;
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 窗口大小调整
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+    </script>
+  </body>
+</html>
