@@ -35,6 +35,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# 大文件和资源文件
+*.hdr
+
 # 测试覆盖率
 coverage/
 .nyc_output/
