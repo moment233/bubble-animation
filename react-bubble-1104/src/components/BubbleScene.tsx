@@ -1,7 +1,7 @@
 'use client';
 
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -24,6 +24,30 @@ function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAm
   const { camera, scene, gl, size } = useThree();
   const composerRef = useRef<EffectComposer | null>(null);
   const bokehPassRef = useRef<BokehPass | null>(null);
+  
+  // 🎲 生成随机气泡出现时间（三三两两出现效果）
+  const bubbleDelays = useMemo(() => {
+    const delays = [];
+    let currentTime = 0;
+    let remaining = 10;
+    
+    while (remaining > 0) {
+      // 每组随机2-3个气泡
+      const groupSize = Math.min(Math.random() < 0.5 ? 2 : 3, remaining);
+      
+      // 组内每个气泡延迟 = 当前组时间点 + 随机0-0.3秒
+      for (let i = 0; i < groupSize; i++) {
+        delays.push(currentTime + Math.random() * 0.3);
+      }
+      
+      remaining -= groupSize;
+      // 组间间隔：0.8-1.2秒
+      currentTime += 0.8 + Math.random() * 0.4;
+    }
+    
+    // 打乱顺序（让气泡索引和出现时间解耦）
+    return delays.sort(() => Math.random() - 0.5);
+  }, []);
   
   // ⚠️ HDR 加载已注释 - 移动端内存不足导致崩溃，且当前未使用 HDR
   // // 定义 HDR 文件列表
@@ -162,6 +186,7 @@ function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAm
           waveSpeed={waveSpeed}
           distortion={distortion}
           subdivision={subdivision}
+          delay={bubbleDelays[index]}
         />
       ))}
 

@@ -21,8 +21,8 @@ export default function GlassInput() {
       <div
         style={{
           background: 'rgba(255, 255, 255, 0.08)',
-          backdropFilter: 'blur(10px) saturate(10%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backdropFilter: 'blur(2px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(2px) saturate(200%)',
           borderRadius: '20px',
           padding: '16px 20px',
           border: '1px solid rgba(255, 255, 255, 0.18)',
@@ -31,6 +31,8 @@ export default function GlassInput() {
           height: '100%',
           display: 'flex',
           alignItems: 'flex-start',
+          transform: 'translateZ(0)',
+          willChange: 'backdrop-filter',
         }}
       >
         <textarea

@@ -125,9 +125,11 @@ export default function DOFControls({
         color: 'white',
         width: isExpanded ? '280px' : 'auto',
         backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         border: '1px solid rgba(139, 92, 246, 0.3)',
         zIndex: 1000,
         transition: 'all 0.3s ease',
+        transform: 'translateZ(0)',
       }}
     >
       {/* 标题栏 - 可点击展开/收起 */}

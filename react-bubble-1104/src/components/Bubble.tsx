@@ -16,9 +16,10 @@ interface BubbleProps {
   waveSpeed: number;
   distortion: number;
   subdivision: number;
+  delay: number; // 气泡出现延迟时间（秒）
 }
 
-export default function Bubble({ index, totalCount, camera, speed, sizeMultiplier, waveAmplitude, waveSpeed, distortion, subdivision }: BubbleProps) {
+export default function Bubble({ index, totalCount, camera, speed, sizeMultiplier, waveAmplitude, waveSpeed, distortion, subdivision, delay }: BubbleProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometryRef = useRef<THREE.BufferGeometry>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -29,7 +30,7 @@ export default function Bubble({ index, totalCount, camera, speed, sizeMultiplie
     size: (0.8 + Math.random() * 1.0) * sizeMultiplier, // 使用倍数控制尺寸范围
     rotationSpeed: 0.005 + Math.random() * 0.015, // 0.005 - 0.02
     startX: -4 + Math.random() * 8, // -4 to 4 (X位置打乱，横跨整个屏幕)
-    startY: -9, // 从视野底部下方开始（实际可见范围：Y=-7.67到+7.67）
+    startY: -11, // 从视野底部下方开始（实际可见范围：Y=-7.67到+7.67，确保完全不可见）
     zAmplitude: 2 + Math.random() * 5, // 2-7 units
     zFrequency: 0.2 + Math.random() * 0.3, // 0.2-0.5 Hz
     zPhase: Math.random() * Math.PI * 2,
@@ -41,8 +42,8 @@ export default function Bubble({ index, totalCount, camera, speed, sizeMultiplie
   const properties = useRef({
     ...randomizeProperties(),
     speed: speed / 5, // 将速度除以5，增加移动速度（70/5=14 units/s）
-    // 延迟出现参数（间隔0.3秒依次出现，减少等待时间）
-    delay: index * 0.3,
+    // 使用传入的随机 delay（三三两两出现效果）
+    delay: delay,
     resetTime: 0, // 记录上次重置的时间
   });
 
