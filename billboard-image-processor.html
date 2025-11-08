@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Billboard 图片处理器</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: linear-gradient(to bottom, #1a1a2e, #16213e);
+        font-family: 'Arial', sans-serif;
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        z-index: 100;
+        max-width: 450px;
+        line-height: 1.7;
+        border: 2px solid rgba(255, 107, 129, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      }
+
+      .info h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #ff6b81;
+        border-bottom: 2px solid #ff6b81;
+        padding-bottom: 8px;
+      }
+
+      .info h2 {
+        font-size: 14px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        color: #4fc3f7;
+      }
+
+      .requirement {
+        background: rgba(76, 175, 80, 0.15);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid #4caf50;
+        margin: 10px 0;
+      }
+
+      .problem {
+        background: rgba(244, 67, 54, 0.15);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid #f44336;
+        margin: 10px 0;
+      }
+
+      .solution {
+        background: rgba(33, 150, 243, 0.15);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid #2196f3;
+        margin: 10px 0;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        max-width: 350px;
+        border: 2px solid rgba(255, 107, 129, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 12px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .preview-area {
+        margin-top: 15px;
+        text-align: center;
+      }
+
+      .preview-canvas {
+        max-width: 100%;
+        border-radius: 8px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        margin-top: 10px;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        min-width: 450px;
+        border: 2px solid rgba(255, 107, 129, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      }
+
+      .control-item {
+        margin: 15px 0;
+      }
+
+      .control-item label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 8px;
+        color: #ff6b81;
+        font-weight: bold;
+      }
+
+      .control-item input[type="range"] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 107, 129, 0.3);
+        outline: none;
+      }
+
+      .control-item select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(255, 107, 129, 0.5);
+        font-size: 12px;
+      }
+
+      .value-display {
+        display: inline-block;
+        background: rgba(255, 107, 129, 0.3);
+        padding: 3px 10px;
+        border-radius: 5px;
+        font-size: 11px;
+        font-family: monospace;
+        margin-left: 8px;
+      }
+
+      .btn-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .btn-small {
+        padding: 8px 15px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+        transition: all 0.2s;
+      }
+
+      .btn-process {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: #fff;
+      }
+
+      .btn-reset {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      .example-section {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        max-width: 300px;
+        border: 2px solid rgba(79, 195, 247, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      }
+
+      .example-img {
+        width: 100%;
+        border-radius: 8px;
+        margin: 8px 0;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h1>🎈 Billboard 图片要求详解</h1>
+      
+      <div class="requirement">
+        <h2 style="margin-top: 0; color: #4caf50;">✅ 理想图片</h2>
+        <p>• <strong>单个</strong>气泡（不是多个）</p>
+        <p>• <strong>透明背景</strong>（PNG格式）</p>
+        <p>• <strong>居中</strong>构图</p>
+        <p>• <strong>正方形</strong>或圆形构图</p>
+      </div>
+
+      <div class="problem">
+        <h2 style="margin-top: 0; color: #f44336;">❌ 问题图片</h2>
+        <p>• 多个气泡密集排列</p>
+        <p>• 黑色/白色不透明背景</p>
+        <p>• 气泡偏向一侧</p>
+        <p>• 非常扁平的构图</p>
+      </div>
+
+      <div class="solution">
+        <h2 style="margin-top: 0; color: #2196f3;">🔧 自动处理方案</h2>
+        <p>• 移除背景（色度抠图）</p>
+        <p>• 裁剪到气泡范围</p>
+        <p>• 居中和缩放</p>
+        <p>• 边缘羽化</p>
+      </div>
+
+      <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+        💡 上传您的气泡图片，系统会自动分析并处理
+      </p>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">📤 上传气泡图片</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        支持 JPG, PNG 格式
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+
+      <div class="preview-area" id="previewArea" style="display: none;">
+        <p style="font-size: 11px; opacity: 0.7; margin-top: 15px;">原始图片：</p>
+        <canvas id="previewCanvas" class="preview-canvas" width="250" height="250"></canvas>
+      </div>
+    </div>
+
+    <div class="controls">
+      <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #ff6b81;">🛠️ 图片处理设置</h3>
+      
+      <div class="control-item">
+        <label>
+          背景移除方式：
+        </label>
+        <select id="removalMethod">
+          <option value="none">不处理（保持原样）</option>
+          <option value="chroma">色度抠图（去除纯色背景）</option>
+          <option value="brightness">亮度抠图（去除暗/亮背景）</option>
+          <option value="edge">边缘检测抠图（智能）</option>
+        </select>
+      </div>
+      
+      <div class="control-item">
+        <label>
+          色度容差: <span class="value-display" id="chromaToleranceValue">0.3</span>
+        </label>
+        <input type="range" id="chromaTolerance" min="0" max="1" step="0.05" value="0.3">
+        <p style="font-size: 11px; opacity: 0.7; margin-top: 5px;">
+          容差越大，移除的颜色范围越广
+        </p>
+      </div>
+
+      <div class="control-item">
+        <label>
+          边缘羽化: <span class="value-display" id="featherValue">5</span>
+        </label>
+        <input type="range" id="feather" min="0" max="20" step="1" value="5">
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-small btn-process" id="processBtn">
+          🔄 应用处理
+        </button>
+        <button class="btn-small btn-reset" id="resetBtn">
+          ↺ 重置
+        </button>
+      </div>
+    </div>
+
+    <div class="example-section">
+      <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #4fc3f7;">
+        💡 图片示例对比
+      </h3>
+      <p style="font-size: 11px; opacity: 0.8; margin-bottom: 8px;">
+        <strong style="color: #4caf50;">✅ 好的：</strong>
+      </p>
+      <div style="background: rgba(76, 175, 80, 0.15); padding: 8px; border-radius: 6px; text-align: center;">
+        <p style="font-size: 11px;">单个气泡 + 透明背景</p>
+      </div>
+      
+      <p style="font-size: 11px; opacity: 0.8; margin: 12px 0 8px 0;">
+        <strong style="color: #f44336;">❌ 不好的：</strong>
+      </p>
+      <div style="background: rgba(244, 67, 54, 0.15); padding: 8px; border-radius: 6px; text-align: center;">
+        <p style="font-size: 11px;">多个气泡 + 黑色背景</p>
+      </div>
+    </div>
+
+    <script type="module" src="/billboard-image-processor.js"></script>
+  </body>
+</html>
+

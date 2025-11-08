@@ -3,7 +3,7 @@
 import { Canvas, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { useEnvironment } from '@react-three/drei';
+import { useEnvironment, OrbitControls } from '@react-three/drei';
 import ControlledBubble from '@/components/ControlledBubble';
 import ControlPanel from '@/components/ControlPanel';
 
@@ -27,7 +27,7 @@ function BubbleScene({
   const { camera, scene } = useThree();
   
   // 加载 HDR 环境贴图
-  const hdrTexture = useEnvironment({ files: '/little_paris_eiffel_tower_1k.hdr' });
+  const hdrTexture = useEnvironment({ files: '/JCI54551673495.hdr' });
 
   // 设置环境贴图
   useEffect(() => {
@@ -40,6 +40,15 @@ function BubbleScene({
 
   return (
     <>
+      {/* OrbitControls - 控制相机视角 */}
+      <OrbitControls 
+        enableDamping 
+        dampingFactor={0.05}
+        minDistance={2}
+        maxDistance={10}
+        enablePan={false}
+      />
+      
       {hdrTexture && (
         <ControlledBubble
           envMap={hdrTexture}

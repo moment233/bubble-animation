@@ -19,6 +19,7 @@ export default function Home() {
   const [focus, setFocus] = useState(10.0);
   const [aperture, setAperture] = useState(0.0001);
   const [maxBlur, setMaxBlur] = useState(0.01);
+  const [bubbleSpeed, setBubbleSpeed] = useState(25); // 气泡上升速度
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function Home() {
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black">
       {/* Three.js 场景 */}
-      <BubbleScene focus={focus} aperture={aperture} maxBlur={maxBlur} />
+      <BubbleScene focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} />
 
       {/* 磨砂玻璃输入框 */}
       <GlassInput />
@@ -77,6 +78,7 @@ export default function Home() {
         onFocusChange={setFocus}
         onApertureChange={setAperture}
         onMaxBlurChange={setMaxBlur}
+        onBubbleSpeedChange={setBubbleSpeed}
       />
 
       {/* 导航按钮 */}

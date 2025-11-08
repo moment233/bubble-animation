@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Billboard 噪声形变系统</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
+        font-family: 'Arial', sans-serif;
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        z-index: 100;
+        max-width: 480px;
+        line-height: 1.8;
+        border: 2px solid rgba(123, 97, 255, 0.6);
+        box-shadow: 0 8px 32px rgba(123, 97, 255, 0.4);
+      }
+
+      .info h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #7b61ff;
+        border-bottom: 2px solid #7b61ff;
+        padding-bottom: 10px;
+      }
+
+      .info h2 {
+        font-size: 14px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        color: #a78bfa;
+      }
+
+      .noise-type-box {
+        background: rgba(123, 97, 255, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 4px solid #7b61ff;
+      }
+
+      .noise-type-box h3 {
+        font-size: 13px;
+        color: #a78bfa;
+        margin-bottom: 5px;
+      }
+
+      .noise-type-box p {
+        font-size: 11px;
+        opacity: 0.9;
+        line-height: 1.6;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        max-width: 320px;
+        border: 2px solid rgba(123, 97, 255, 0.6);
+        box-shadow: 0 8px 32px rgba(123, 97, 255, 0.4);
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 12px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(123, 97, 255, 0.5);
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(123, 97, 255, 0.7);
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        min-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        border: 2px solid rgba(123, 97, 255, 0.6);
+        box-shadow: 0 8px 32px rgba(123, 97, 255, 0.4);
+      }
+
+      .controls::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .controls::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      .controls::-webkit-scrollbar-thumb {
+        background: rgba(123, 97, 255, 0.5);
+        border-radius: 4px;
+      }
+
+      .control-section {
+        margin: 20px 0;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        border-left: 3px solid #7b61ff;
+      }
+
+      .control-section h3 {
+        font-size: 14px;
+        color: #a78bfa;
+        margin-bottom: 12px;
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin: 10px 0;
+      }
+
+      .control-item {
+        margin: 12px 0;
+      }
+
+      .control-item label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 6px;
+        color: #a78bfa;
+        font-weight: bold;
+      }
+
+      .control-item input[type="range"] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(123, 97, 255, 0.3);
+        outline: none;
+      }
+
+      .control-item select {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(123, 97, 255, 0.5);
+        font-size: 12px;
+      }
+
+      .control-item input[type="checkbox"] {
+        margin-right: 8px;
+      }
+
+      .value-display {
+        display: inline-block;
+        background: rgba(123, 97, 255, 0.3);
+        padding: 3px 10px;
+        border-radius: 5px;
+        font-size: 11px;
+        font-family: monospace;
+        margin-left: 8px;
+        color: #a78bfa;
+      }
+
+      .preset-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .preset-btn {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(123, 97, 255, 0.5);
+        background: rgba(123, 97, 255, 0.1);
+        color: #a78bfa;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s;
+      }
+
+      .preset-btn:hover {
+        background: rgba(123, 97, 255, 0.3);
+        transform: translateY(-2px);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h1>🌊 噪声驱动的 Billboard 形变</h1>
+      
+      <div class="noise-type-box">
+        <h3>🎲 Perlin Noise（柏林噪声）</h3>
+        <p>• 经典噪声，平滑自然</p>
+        <p>• 适合云雾、地形、有机形变</p>
+        <p>• 可以叠加多个频率（FBM）</p>
+      </div>
+
+      <div class="noise-type-box">
+        <h3>🔷 Simplex Noise（单纯形噪声）</h3>
+        <p>• Perlin噪声的改进版</p>
+        <p>• 性能更好，更少方向性</p>
+        <p>• 适合实时动画</p>
+      </div>
+
+      <div class="noise-type-box">
+        <h3>📐 Voronoi Noise（泰森多边形）</h3>
+        <p>• 细胞状结构</p>
+        <p>• 适合水滴、气泡破裂效果</p>
+        <p>• 可以创造尖锐的边缘</p>
+      </div>
+
+      <div class="noise-type-box">
+        <h3>🌀 FBM（分形布朗运动）</h3>
+        <p>• 多层噪声叠加</p>
+        <p>• 创造复杂的细节层次</p>
+        <p>• 可调节：频率倍增、幅度衰减</p>
+      </div>
+
+      <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+        💡 使用下方控制面板调整噪声参数，创造独特的形变效果
+      </p>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">📤 上传气泡图片</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        支持 JPG, PNG 格式
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+    </div>
+
+    <div class="controls">
+      <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #7b61ff;">
+        🎛️ 噪声形变控制面板
+      </h3>
+
+      <!-- 噪声类型选择 -->
+      <div class="control-section">
+        <h3>噪声类型</h3>
+        <div class="control-item">
+          <select id="noiseType">
+            <option value="perlin">Perlin Noise（柏林噪声）</option>
+            <option value="simplex">Simplex Noise（单纯形）</option>
+            <option value="voronoi">Voronoi Noise（泰森多边形）</option>
+            <option value="fbm" selected>FBM（多层叠加）</option>
+            <option value="turbulence">Turbulence（湍流）</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 基础参数 -->
+      <div class="control-section">
+        <h3>基础参数</h3>
+        <div class="control-row">
+          <div class="control-item">
+            <label>
+              形变强度: <span class="value-display" id="amplitudeValue">0.3</span>
+            </label>
+            <input type="range" id="amplitude" min="0" max="1" step="0.05" value="0.3">
+          </div>
+          
+          <div class="control-item">
+            <label>
+              噪声频率: <span class="value-display" id="frequencyValue">2.0</span>
+            </label>
+            <input type="range" id="frequency" min="0.1" max="10" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="control-item">
+            <label>
+              动画速度: <span class="value-display" id="timeScaleValue">1.0</span>
+            </label>
+            <input type="range" id="timeScale" min="0" max="3" step="0.1" value="1.0">
+          </div>
+          
+          <div class="control-item">
+            <label>
+              噪声缩放: <span class="value-display" id="noiseScaleValue">5.0</span>
+            </label>
+            <input type="range" id="noiseScale" min="1" max="20" step="0.5" value="5.0">
+          </div>
+        </div>
+      </div>
+
+      <!-- FBM 参数 -->
+      <div class="control-section">
+        <h3>FBM（分形）参数</h3>
+        <div class="control-row">
+          <div class="control-item">
+            <label>
+              叠加层数: <span class="value-display" id="octavesValue">4</span>
+            </label>
+            <input type="range" id="octaves" min="1" max="8" step="1" value="4">
+          </div>
+          
+          <div class="control-item">
+            <label>
+              频率倍增: <span class="value-display" id="lacunarityValue">2.0</span>
+            </label>
+            <input type="range" id="lacunarity" min="1" max="4" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <div class="control-item">
+          <label>
+            幅度衰减: <span class="value-display" id="persistenceValue">0.5</span>
+          </label>
+          <input type="range" id="persistence" min="0.1" max="1" step="0.05" value="0.5">
+          <p style="font-size: 10px; opacity: 0.7; margin-top: 5px;">
+            越小越平滑，越大细节越多
+          </p>
+        </div>
+      </div>
+
+      <!-- 形变模式 -->
+      <div class="control-section">
+        <h3>形变模式</h3>
+        <div class="control-item">
+          <label>
+            <input type="checkbox" id="useVertexDeform" checked>
+            顶点形变（Z轴偏移）
+          </label>
+        </div>
+        <div class="control-item">
+          <label>
+            <input type="checkbox" id="useUVDistortion" checked>
+            UV扭曲（纹理变形）
+          </label>
+        </div>
+        <div class="control-item">
+          <label>
+            <input type="checkbox" id="useRotation">
+            旋转扭曲
+          </label>
+        </div>
+        <div class="control-item">
+          <label>
+            <input type="checkbox" id="useScale">
+            缩放脉动
+          </label>
+        </div>
+      </div>
+
+      <!-- 预设效果 -->
+      <div class="control-section">
+        <h3>预设效果</h3>
+        <div class="preset-buttons">
+          <button class="preset-btn" id="preset-gentle">轻柔波动</button>
+          <button class="preset-btn" id="preset-crazy">疯狂扭曲</button>
+          <button class="preset-btn" id="preset-bubble">气泡脉动</button>
+          <button class="preset-btn" id="preset-flame">火焰效果</button>
+          <button class="preset-btn" id="preset-water">水波涟漪</button>
+          <button class="preset-btn" id="preset-organic">有机生长</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/billboard-noise-deformation.js"></script>
+  </body>
+</html>
+

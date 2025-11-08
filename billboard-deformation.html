@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Billboard 气泡形变效果</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: linear-gradient(to bottom, #0a0a0a, #000);
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-family: 'Arial', sans-serif;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 12px;
+        z-index: 100;
+        max-width: 450px;
+        line-height: 1.7;
+        border: 2px solid rgba(129, 199, 132, 0.4);
+      }
+
+      .info h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #81c784;
+        border-bottom: 2px solid #81c784;
+        padding-bottom: 8px;
+      }
+
+      .info h2 {
+        font-size: 14px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        color: #4fc3f7;
+      }
+
+      .info p {
+        margin: 5px 0;
+        opacity: 0.95;
+        font-size: 12px;
+      }
+
+      .method-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 3px solid #81c784;
+      }
+
+      .method-card h3 {
+        font-size: 13px;
+        color: #81c784;
+        margin-bottom: 5px;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        color: #fff;
+        z-index: 100;
+        max-width: 300px;
+        border: 2px solid rgba(129, 199, 132, 0.4);
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #81c784 0%, #4caf50 100%);
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 10px;
+        transition: transform 0.2s;
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        color: #fff;
+        z-index: 100;
+        min-width: 400px;
+        border: 2px solid rgba(129, 199, 132, 0.4);
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin: 15px 0;
+      }
+
+      .control-item {
+        margin: 10px 0;
+      }
+
+      .control-item label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 6px;
+        color: #81c784;
+        font-weight: bold;
+      }
+
+      .control-item input[type="range"] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(129, 199, 132, 0.3);
+        outline: none;
+      }
+
+      .control-item select {
+        width: 100%;
+        padding: 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(129, 199, 132, 0.5);
+        font-size: 12px;
+      }
+
+      .value-display {
+        display: inline-block;
+        background: rgba(129, 199, 132, 0.2);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: monospace;
+        margin-left: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h1>🎨 Billboard 气泡形变技术</h1>
+      
+      <div class="method-card">
+        <h3>方案1: Shader 扭曲 ⭐⭐⭐</h3>
+        <p>✅ 在片段着色器中对纹理进行形变</p>
+        <p>✅ 性能好，面向相机</p>
+        <p>💡 适合波浪、涟漪、扭曲效果</p>
+      </div>
+
+      <div class="method-card">
+        <h3>方案2: Plane + LookAt ⭐⭐⭐⭐</h3>
+        <p>✅ 使用高细分平面，每帧面向相机</p>
+        <p>✅ 顶点着色器中形变（波浪、凹凸）</p>
+        <p>💡 适合复杂的3D形变</p>
+      </div>
+
+      <div class="method-card">
+        <h3>方案3: 粒子云 Billboard ⭐⭐</h3>
+        <p>✅ 多个小 Sprite 组成形变气泡</p>
+        <p>⚠️ 性能消耗较大</p>
+        <p>💡 适合爆炸、消散效果</p>
+      </div>
+
+      <p style="margin-top: 15px; color: #81c784; font-size: 13px;">
+        🖱️ 旋转相机，气泡会始终面向你并产生形变动画
+      </p>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">上传气泡图片</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        支持 JPG, PNG
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+    </div>
+
+    <div class="controls">
+      <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #81c784;">形变控制面板</h3>
+      
+      <div class="control-item">
+        <label>形变方案：</label>
+        <select id="deformationType">
+          <option value="all">全部对比</option>
+          <option value="shader">仅 Shader 扭曲</option>
+          <option value="plane">仅 Plane + LookAt</option>
+          <option value="particles">仅 粒子云</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <div class="control-item">
+          <label>
+            波浪强度: <span class="value-display" id="waveAmplitudeValue">0.2</span>
+          </label>
+          <input type="range" id="waveAmplitude" min="0" max="0.5" step="0.01" value="0.2">
+        </div>
+        
+        <div class="control-item">
+          <label>
+            波浪速度: <span class="value-display" id="waveSpeedValue">2.0</span>
+          </label>
+          <input type="range" id="waveSpeed" min="0" max="5" step="0.1" value="2.0">
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="control-item">
+          <label>
+            扭曲强度: <span class="value-display" id="distortionValue">0.1</span>
+          </label>
+          <input type="range" id="distortion" min="0" max="0.3" step="0.01" value="0.1">
+        </div>
+        
+        <div class="control-item">
+          <label>
+            顶点细分: <span class="value-display" id="subdivisionValue">32</span>
+          </label>
+          <input type="range" id="subdivision" min="8" max="64" step="8" value="32">
+        </div>
+      </div>
+
+      <div class="control-item">
+        <label>
+          粒子数量: <span class="value-display" id="particleCountValue">100</span>
+        </label>
+        <input type="range" id="particleCount" min="50" max="500" step="50" value="100">
+      </div>
+    </div>
+
+    <script type="module" src="/billboard-deformation.js"></script>
+  </body>
+</html>
+

@@ -7,11 +7,14 @@ import SimplexNoise from '@/utils/SimplexNoise';
 import { bubbleVertexShader, bubbleFragmentShader } from '@/shaders/bubbleShaders';
 
 interface BubbleProps {
-  envMap: THREE.CubeTexture | THREE.Texture | null;
+  index: number;
+  totalCount: number;
+  envMaps: (THREE.CubeTexture | THREE.Texture | null)[];
   camera: THREE.Camera;
+  speed: number;
 }
 
-export default function Bubble({ envMap, camera }: BubbleProps) {
+export default function Bubble({ index, totalCount, envMaps, camera, speed }: BubbleProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometryRef = useRef<THREE.BufferGeometry>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -22,21 +25,25 @@ export default function Bubble({ envMap, camera }: BubbleProps) {
   // SimplexNoise 实例
   const simplex = useMemo(() => new SimplexNoise(), []);
   
-  // 气泡属性
-  const properties = useRef({
+  // 参数随机化函数
+  const randomizeProperties = () => ({
     size: 0.15 + Math.random() * 0.45, // 0.15 - 0.6
-    speed: 0.3 + Math.random() * 0.5, // 0.3 - 0.8 units/sec
-    swingAmplitude: 0.5 + Math.random() * 1.0, // 0.5 - 1.5
-    swingFrequency: 0.5 + Math.random() * 1.5, // 0.5 - 2.0 Hz
     rotationSpeed: 0.005 + Math.random() * 0.015, // 0.005 - 0.02
-    phase: Math.random() * Math.PI * 2,
-    startX: -4 + Math.random() * 8, // -4 to 4
-    startY: -6 + Math.random() * 12, // -6 to 6 (整个屏幕范围随机分布)
-    // Z轴运动参数
+    startX: -4 + Math.random() * 8, // -4 to 4 (X位置打乱，横跨整个屏幕)
+    startY: -12, // 从页面底部之外开始（确保所有Z位置的气泡都在视野外）
     zAmplitude: 2 + Math.random() * 5, // 2-7 units
     zFrequency: 0.2 + Math.random() * 0.3, // 0.2-0.5 Hz
     zPhase: Math.random() * Math.PI * 2,
     startZ: -5 + Math.random() * 10, // -5 to 5
+    hdrIndex: Math.floor(Math.random() * envMaps.length), // 随机选择 HDR 索引
+  });
+
+  // 气泡属性
+  const properties = useRef({
+    ...randomizeProperties(),
+    speed: speed, // 使用传入的速度参数
+    // 延迟出现参数（间隔0.5秒依次出现）
+    delay: index * 0.5,
   });
 
   // 初始化几何体和原始位置
@@ -45,16 +52,34 @@ export default function Bubble({ envMap, camera }: BubbleProps) {
       const positions = geometryRef.current.attributes.position;
       originalPositions.current = new Float32Array(positions.array);
     }
+    
+    // 设置初始位置
+    if (meshRef.current) {
+      meshRef.current.position.set(
+        properties.current.startX,
+        properties.current.startY,
+        properties.current.startZ
+      );
+    }
   }, []);
 
   // 更新材质的 envMap uniform
   useEffect(() => {
-    if (materialRef.current && envMap) {
-      materialRef.current.uniforms.envMap.value = envMap;
-      materialRef.current.needsUpdate = true;
-      console.log('🔄 Bubble envMap updated');
+    if (materialRef.current && envMaps.length > 0) {
+      const currentHdrIndex = properties.current.hdrIndex || 0;
+      const selectedEnvMap = envMaps[currentHdrIndex];
+      if (selectedEnvMap) {
+        materialRef.current.uniforms.envMap.value = selectedEnvMap;
+        materialRef.current.needsUpdate = true;
+        console.log(`🔄 气泡 ${index}: 使用 HDR #${currentHdrIndex}`);
+      }
     }
-  }, [envMap]);
+  }, [envMaps, index]);
+
+  // 实时更新气泡速度
+  useEffect(() => {
+    properties.current.speed = speed;
+  }, [speed]);
 
   // 动画循环
   useFrame((state) => {
@@ -64,19 +89,46 @@ export default function Bubble({ envMap, camera }: BubbleProps) {
     const elapsedTime = state.clock.getElapsedTime();
     const props = properties.current;
 
+    // 延迟激活检查 - 未到激活时间则保持在底部隐藏
+    if (elapsedTime < props.delay) {
+      meshRef.current.position.y = -12;
+      meshRef.current.position.x = props.startX;
+      meshRef.current.position.z = props.startZ;
+      return;
+    }
+
     // 垂直上升
     meshRef.current.position.y += props.speed * deltaTime;
+    
+    // 边界检测：飞出顶部后重置
+    if (meshRef.current.position.y > 15) {
+      // 随机化新的参数
+      const newProps = randomizeProperties();
+      Object.assign(props, newProps);
+      
+      // 重置位置
+      meshRef.current.position.y = props.startY;
+      meshRef.current.position.x = props.startX;
+      meshRef.current.position.z = props.startZ;
+      
+      // 更新气泡大小
+      meshRef.current.scale.setScalar(props.size);
+      
+      // 更新 envMap（切换到新的 HDR）
+      if (materialRef.current && envMaps[props.hdrIndex]) {
+        materialRef.current.uniforms.envMap.value = envMaps[props.hdrIndex];
+        materialRef.current.needsUpdate = true;
+      }
+      
+      console.log(`🔄 气泡 ${index}: 重置 - size=${props.size.toFixed(2)}, x=${props.startX.toFixed(2)}, z=${props.startZ.toFixed(2)}, HDR #${props.hdrIndex}`);
+      return;
+    }
 
-    // X轴摆动
-    meshRef.current.position.x =
-      props.startX +
-      Math.sin(elapsedTime * props.swingFrequency + props.phase) *
-        props.swingAmplitude;
+    // X轴位置固定（轻微随机偏移）
+    meshRef.current.position.x = props.startX;
 
-    // Z轴前后摆动
-    meshRef.current.position.z =
-      props.startZ +
-      Math.sin(elapsedTime * props.zFrequency + props.zPhase) * props.zAmplitude;
+    // Z轴位置固定（暂停Z轴运动）
+    meshRef.current.position.z = props.startZ;
 
     // 旋转
     meshRef.current.rotation.y += props.rotationSpeed;
@@ -109,28 +161,6 @@ export default function Bubble({ envMap, camera }: BubbleProps) {
     positions.needsUpdate = true;
     geometryRef.current.computeVertexNormals();
 
-    // 到达顶部重生（循环动画）
-    if (meshRef.current.position.y > 6) {
-      // 重置到底部（保持连续性）
-      meshRef.current.position.y = -6;
-
-      // 随机新的参数（创造多样性）
-      props.startX = -4 + Math.random() * 8;
-      meshRef.current.position.x = props.startX;
-
-      props.startZ = -5 + Math.random() * 10;
-      meshRef.current.position.z = props.startZ;
-
-      props.phase = Math.random() * Math.PI * 2;
-      props.zPhase = Math.random() * Math.PI * 2;
-
-      props.speed = 0.3 + Math.random() * 0.5;
-      props.swingAmplitude = 0.5 + Math.random() * 1.0;
-      props.swingFrequency = 0.5 + Math.random() * 1.5;
-      props.zAmplitude = 2 + Math.random() * 5;
-      props.zFrequency = 0.2 + Math.random() * 0.3;
-    }
-
     // 更新材质 uniforms
     if (materialRef.current) {
       materialRef.current.uniforms.uCameraPos.value = camera.position;
@@ -140,7 +170,6 @@ export default function Bubble({ envMap, camera }: BubbleProps) {
   return (
     <mesh
       ref={meshRef}
-      position={[properties.current.startX, properties.current.startY, properties.current.startZ]}
       scale={properties.current.size}
     >
       <sphereGeometry ref={geometryRef} args={[1, 64, 64]} />
@@ -150,7 +179,7 @@ export default function Bubble({ envMap, camera }: BubbleProps) {
         fragmentShader={bubbleFragmentShader}
         uniforms={{
           uCameraPos: { value: camera.position },
-          envMap: { value: envMap },
+          envMap: { value: envMaps[properties.current.hdrIndex] || envMaps[0] },
         }}
         transparent
         side={THREE.DoubleSide}

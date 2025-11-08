@@ -13,24 +13,44 @@ interface BubbleGroupProps {
   focus: number;
   aperture: number;
   maxBlur: number;
+  bubbleSpeed: number;
 }
 
-function BubbleGroup({ focus, aperture, maxBlur }: BubbleGroupProps) {
+function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed }: BubbleGroupProps) {
   const { camera, scene, gl, size } = useThree();
   const composerRef = useRef<EffectComposer | null>(null);
   const bokehPassRef = useRef<BokehPass | null>(null);
   
-  // 使用 useEnvironment hook 加载 HDR（无弃用警告）
-  const hdrTexture = useEnvironment({ files: '/little_paris_eiffel_tower_1k.hdr' });
+  // 定义 HDR 文件列表
+  const hdrFiles = [
+    '/JCI54551673495.hdr',
+    '/JCI54553017162.hdr',
+    '/JCI54556473495.hdr',
+    '/JCI54558507195.hdr',
+    '/little_paris_eiffel_tower_1k.hdr',
+  ];
 
-  // 设置环境贴图
+  // 预加载多个 HDR 文件
+  const hdr1 = useEnvironment({ files: hdrFiles[0] });
+  const hdr2 = useEnvironment({ files: hdrFiles[1] });
+  const hdr3 = useEnvironment({ files: hdrFiles[2] });
+  const hdr4 = useEnvironment({ files: hdrFiles[3] });
+  const hdr5 = useEnvironment({ files: hdrFiles[4] });
+
+  // 将所有 HDR 组合成数组
+  const hdrTextures = [hdr1, hdr2, hdr3, hdr4, hdr5];
+  
+  // 检查所有 HDR 是否加载完成
+  const allHdrsLoaded = hdrTextures.every(hdr => hdr !== null);
+
+  // 设置环境贴图（使用第一个作为场景环境）
   useEffect(() => {
-    if (hdrTexture) {
-      scene.environment = hdrTexture;
+    if (hdr1) {
+      scene.environment = hdr1;
       scene.background = new THREE.Color(0x000000);
-      console.log('✅ Environment map loaded successfully!');
+      console.log('✅ Environment maps loaded successfully! Total:', hdrTextures.filter(h => h).length);
     }
-  }, [hdrTexture, scene]);
+  }, [hdr1, scene, hdrTextures]);
 
   // 创建后处理管线（和原版HTML完全一致）
   useEffect(() => {
@@ -119,9 +139,16 @@ function BubbleGroup({ focus, aperture, maxBlur }: BubbleGroupProps) {
 
   return (
     <>
-      {/* 创建 15 个气泡 */}
-      {hdrTexture && Array.from({ length: 25 }).map((_, index) => (
-        <Bubble key={index} envMap={hdrTexture} camera={camera} />
+      {/* 创建 10 个气泡 */}
+      {allHdrsLoaded && Array.from({ length: 10 }).map((_, index) => (
+        <Bubble 
+          key={index} 
+          index={index}
+          totalCount={10}
+          envMaps={hdrTextures} 
+          camera={camera}
+          speed={bubbleSpeed}
+        />
       ))}
 
       {/* 方向光 */}
@@ -134,9 +161,10 @@ interface BubbleSceneProps {
   focus: number;
   aperture: number;
   maxBlur: number;
+  bubbleSpeed: number;
 }
 
-export default function BubbleScene({ focus, aperture, maxBlur }: BubbleSceneProps) {
+export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed }: BubbleSceneProps) {
   return (
     <Canvas
       camera={{
@@ -159,7 +187,7 @@ export default function BubbleScene({ focus, aperture, maxBlur }: BubbleScenePro
       }}
     >
       <Suspense fallback={null}>
-        <BubbleGroup focus={focus} aperture={aperture} maxBlur={maxBlur} />
+        <BubbleGroup focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} />
       </Suspense>
     </Canvas>
   );

@@ -163,16 +163,19 @@ export const controlledBubbleFragmentShader = `
 
     float fresnel = pow(1.0 - NdotV, 1.8);
 
-    // 平滑的厚度变化
+    // 平滑的厚度变化 - 受折射率影响更明显
     float thickness = 350.0 + vNormal.y * 150.0 + vNormal.x * 60.0;
+    // 折射率直接影响薄膜干涉颜色
     vec3 iridescence = getThinFilmColor(NdotV, thickness) * 2.2;
 
-    // 环境反射（可调强度）- 影响所有反射相关计算
+    // 环境反射（可调强度）- 大幅增强效果
     vec3 reflected = reflect(-viewDirection, normal);
     vec3 envReflection = sampleEquirectangular(envMap, reflected);
+    // 反射强度直接乘以环境颜色，效果更明显（0.0-2.0范围）
     vec3 envColor = envReflection * reflectionStrength;
 
     // 环境折射（可调折射率）- 折射率直接影响折射方向
+    // 折射率范围 1.0-2.0，效果会非常明显
     vec3 refracted = refract(-viewDirection, normal, 1.0 / refractionRatio);
     vec3 refractColor = vec3(0.0);
     
@@ -183,23 +186,26 @@ export const controlledBubbleFragmentShader = `
 
     float edgeMask = smoothstep(0.2, 0.95, fresnel);
     
-    // 混合自定义边缘颜色和彩虹色 - 使用 reflectionStrength 控制的 envColor
-    vec3 customEdgeColor = mix(iridescence, edgeColor, 0.5);
+    // 混合自定义边缘颜色和彩虹色
+    // edgeColor 参数直接影响边缘颜色（权重从0.5提高到0.7，更明显）
+    vec3 customEdgeColor = mix(iridescence, edgeColor, 0.7);
     vec3 finalEdgeColor = mix(customEdgeColor, envColor, fresnel * 0.4);
     
-    // 折射颜色强度根据折射率调整（折射率越高，折射效果越强）
-    float refractionFactor = (refractionRatio - 1.0) * 2.0; // 将 1.0-2.0 映射到 0.0-2.0
-    vec3 centerColor = refractColor * (2.0 + refractionFactor) + envColor * 0.5;
+    // 折射颜色强度根据折射率调整 - 增强效果
+    // 折射率 1.0 → factor=0, 折射率 2.0 → factor=2.0
+    float refractionFactor = (refractionRatio - 1.0) * 3.0; // 加强折射效果
+    vec3 centerColor = refractColor * (1.5 + refractionFactor) + envColor * 0.5;
 
     vec3 finalColor = mix(centerColor, finalEdgeColor, edgeMask);
 
-    // 增强饱和度和亮度 - 反射强度也影响最终亮度
+    // 增强饱和度和亮度 - 反射强度大幅影响最终亮度
     float luminance = dot(finalColor, vec3(0.299, 0.587, 0.114));
     finalColor = mix(vec3(luminance), finalColor, 1.6);
-    finalColor *= (1.5 + reflectionStrength * 0.3); // 反射强度影响整体亮度
-    finalColor += envColor * 0.2;
+    // 反射强度对亮度的影响增强（从0.3提高到0.8）
+    finalColor *= (1.0 + reflectionStrength * 0.8);
+    finalColor += envColor * 0.3;
     
-    // 添加彩虹边缘效果（可调节强度）
+    // 添加彩虹边缘效果（可调节强度）- 效果更明显
     if (rainbowIntensity > 0.0) {
       // 使用 fresnel 值作为彩虹渐变的位置
       float rainbowPos = fresnel;
@@ -207,12 +213,12 @@ export const controlledBubbleFragmentShader = `
       float rainbowMask = smoothstep(0.4, 0.95, fresnel);
       // 生成彩虹颜色
       vec3 rainbowColor = getRainbowEdge(rainbowPos);
-      // 叠加到最终颜色
-      finalColor += rainbowColor * rainbowMask * rainbowIntensity;
+      // 叠加到最终颜色 - 增强彩虹效果（乘以2.0）
+      finalColor += rainbowColor * rainbowMask * rainbowIntensity * 2.0;
     }
     
     // 添加轻微的平滑处理，避免闪烁
-    finalColor = clamp(finalColor, 0.0, 3.0);
+    finalColor = clamp(finalColor, 0.0, 5.0); // 提高上限以显示更亮的效果
 
     float alpha = edgeMask * 0.95 + (1.0 - edgeMask) * 0.4;
 

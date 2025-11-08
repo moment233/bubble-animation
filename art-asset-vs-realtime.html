@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>美术资源 vs 实时渲染对比</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: #000;
+        font-family: 'Arial', sans-serif;
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info-panel {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.95);
+        padding: 25px;
+        border-radius: 15px;
+        z-index: 100;
+        max-width: 480px;
+        line-height: 1.8;
+        border: 2px solid rgba(255, 87, 34, 0.6);
+        box-shadow: 0 8px 32px rgba(255, 87, 34, 0.3);
+      }
+
+      .info-panel h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #ff5722;
+        border-bottom: 2px solid #ff5722;
+        padding-bottom: 10px;
+      }
+
+      .info-panel h2 {
+        font-size: 15px;
+        margin-top: 18px;
+        margin-bottom: 10px;
+        color: #ffab40;
+      }
+
+      .comparison-box {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+        margin: 12px 0;
+        border-left: 4px solid #ff5722;
+      }
+
+      .comparison-box h3 {
+        font-size: 14px;
+        color: #ffab40;
+        margin-bottom: 8px;
+      }
+
+      .comparison-box ul {
+        margin-left: 20px;
+        font-size: 12px;
+        line-height: 1.8;
+      }
+
+      .problem-box {
+        background: rgba(244, 67, 54, 0.15);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid #f44336;
+        margin: 10px 0;
+      }
+
+      .solution-box {
+        background: rgba(76, 175, 80, 0.15);
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid #4caf50;
+        margin: 10px 0;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        padding: 25px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        max-width: 350px;
+        border: 2px solid rgba(255, 87, 34, 0.6);
+        box-shadow: 0 8px 32px rgba(255, 87, 34, 0.3);
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff5722 100%);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 12px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(255, 87, 34, 0.5);
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 87, 34, 0.7);
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        padding: 25px;
+        border-radius: 15px;
+        color: #fff;
+        z-index: 100;
+        min-width: 500px;
+        border: 2px solid rgba(255, 87, 34, 0.6);
+        box-shadow: 0 8px 32px rgba(255, 87, 34, 0.3);
+      }
+
+      .sphere-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin: 15px 0;
+      }
+
+      .sphere-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        border: 2px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .sphere-card:hover {
+        border-color: #ff5722;
+        background: rgba(255, 87, 34, 0.1);
+      }
+
+      .sphere-card h3 {
+        font-size: 13px;
+        color: #ffab40;
+        margin-bottom: 8px;
+      }
+
+      .sphere-card p {
+        font-size: 11px;
+        opacity: 0.8;
+        line-height: 1.5;
+      }
+
+      .quality-indicator {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-top: 8px;
+      }
+
+      .quality-bad {
+        background: rgba(244, 67, 54, 0.3);
+        color: #f44336;
+      }
+
+      .quality-medium {
+        background: rgba(255, 152, 0, 0.3);
+        color: #ff9800;
+      }
+
+      .quality-good {
+        background: rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+      }
+
+      .quality-perfect {
+        background: rgba(33, 150, 243, 0.3);
+        color: #2196f3;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info-panel">
+      <h1>🎨 美术资源 vs 实时渲染</h1>
+      
+      <div class="comparison-box">
+        <h3>方案1：直接贴图（美术给的图）</h3>
+        <ul>
+          <li>❌ 球体变成<strong>不透明</strong>的</li>
+          <li>❌ 彩虹色<strong>固定</strong>，不随角度变化</li>
+          <li>❌ 高光位置<strong>固定</strong>，不随光源变化</li>
+          <li>❌ <strong>没有折射</strong>，看不穿</li>
+          <li>✅ 实现<strong>简单</strong></li>
+        </ul>
+      </div>
+
+      <div class="comparison-box">
+        <h3>方案2：PBR 多层贴图（推荐）</h3>
+        <ul>
+          <li>✅ 基础色贴图 (Base Color)</li>
+          <li>✅ 法线贴图 (Normal Map) - 表面细节</li>
+          <li>✅ 粗糙度贴图 (Roughness) - 反光程度</li>
+          <li>✅ 金属度贴图 (Metallic)</li>
+          <li>✅ <strong>保持透明和折射</strong></li>
+          <li>⚠️ 需要美术提供多张贴图</li>
+        </ul>
+      </div>
+
+      <div class="comparison-box">
+        <h3>方案3：实时物理渲染（最真实）</h3>
+        <ul>
+          <li>✅ 完全<strong>动态</strong>的效果</li>
+          <li>✅ 真实的<strong>透明、折射、彩虹</strong></li>
+          <li>✅ 高光和反射<strong>随相机变化</strong></li>
+          <li>✅ 不需要美术资源</li>
+          <li>⚠️ 无法精确控制外观</li>
+        </ul>
+      </div>
+
+      <div class="solution-box" style="margin-top: 15px;">
+        <strong>💡 最佳实践：</strong>
+        <p style="font-size: 12px; margin-top: 5px;">
+          方案2（PBR多层）+ 方案3（物理材质）混合使用！
+          <br>用贴图控制细节，用物理材质实现透明折射。
+        </p>
+      </div>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">📤 上传美术资源</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        上传单个气泡图片，看实际效果对比
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择气泡图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+    </div>
+
+    <div class="controls">
+      <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #ff5722;">
+        🎯 三种方案实时对比
+      </h3>
+      
+      <div class="sphere-row">
+        <div class="sphere-card">
+          <h3>直接贴图</h3>
+          <p>美术给的图直接贴上去</p>
+          <p style="margin-top: 5px; color: #f44336;">⚠️ 不透明，像塑料球</p>
+          <span class="quality-indicator quality-bad">质感: 差</span>
+        </div>
+        
+        <div class="sphere-card">
+          <h3>PBR 混合</h3>
+          <p>贴图 + 透明材质</p>
+          <p style="margin-top: 5px; color: #ff9800;">图案可控但难度高</p>
+          <span class="quality-indicator quality-medium">质感: 中</span>
+        </div>
+        
+        <div class="sphere-card">
+          <h3>物理渲染</h3>
+          <p>纯代码实现，最真实</p>
+          <p style="margin-top: 5px; color: #4caf50;">✓ 完美的透明折射</p>
+          <span class="quality-indicator quality-perfect">质感: 优</span>
+        </div>
+      </div>
+
+      <p style="font-size: 12px; opacity: 0.8; margin-top: 15px; text-align: center;">
+        🖱️ 拖动旋转，观察不同方案在不同角度下的表现
+      </p>
+    </div>
+
+    <script type="module" src="/art-asset-vs-realtime.js"></script>
+  </body>
+</html>
+

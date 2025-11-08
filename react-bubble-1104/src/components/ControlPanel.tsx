@@ -136,7 +136,11 @@ export default function ControlPanel({
               max="2"
             step="0.01"
             value={refractionRatio}
-              onChange={(event) => onRefractionChange(parseFloat(event.target.value))}
+              onChange={(event) => {
+                const value = parseFloat(event.target.value);
+                console.log('📊 折射率变化:', value);
+                onRefractionChange(value);
+              }}
               className="slider"
           />
           </ControlBlock>
@@ -151,7 +155,11 @@ export default function ControlPanel({
               max="2"
             step="0.01"
             value={reflectionStrength}
-              onChange={(event) => onReflectionChange(parseFloat(event.target.value))}
+              onChange={(event) => {
+                const value = parseFloat(event.target.value);
+                console.log('📊 反射强度变化:', value);
+                onReflectionChange(value);
+              }}
               className="slider"
             />
           </ControlBlock>
@@ -196,9 +204,13 @@ export default function ControlPanel({
               type="range"
               min="0"
               max="2"
-              step="0.1"
+              step="0.01"
               value={rainbowIntensity}
-              onChange={(event) => onRainbowIntensityChange(parseFloat(event.target.value))}
+              onChange={(event) => {
+                const value = parseFloat(event.target.value);
+                console.log('📊 彩虹强度变化:', value);
+                onRainbowIntensityChange(value);
+              }}
               className="slider"
             />
             <p className="mt-2 text-xs text-white/50">🌈 程序化彩虹光晕效果</p>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>图片纹理球体对比</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: linear-gradient(to bottom, #1a1a1a, #000);
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-family: 'Arial', sans-serif;
+        font-size: 14px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 20px;
+        border-radius: 12px;
+        z-index: 100;
+        max-width: 350px;
+        line-height: 1.6;
+      }
+
+      .info h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #4fc3f7;
+      }
+
+      .info h2 {
+        font-size: 16px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        color: #81c784;
+      }
+
+      .info p {
+        margin: 5px 0;
+        opacity: 0.9;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 20px;
+        border-radius: 12px;
+        color: #fff;
+        z-index: 100;
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 10px 20px;
+        background: #4fc3f7;
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 10px;
+        transition: background 0.3s;
+      }
+
+      .upload-btn:hover {
+        background: #81d4fa;
+      }
+
+      #fileInput {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h1>🎨 球体纹理对比</h1>
+      
+      <h2>左侧：物理材质（程序化）</h2>
+      <p>✨ 使用 iridescence 属性</p>
+      <p>🔬 实时计算彩虹效果</p>
+      <p>💡 支持环境反射</p>
+      
+      <h2>右侧：图片纹理</h2>
+      <p>🖼️ 直接贴图方式</p>
+      <p>📸 显示您上传的图片</p>
+      <p>🎯 静态纹理映射</p>
+      
+      <p style="margin-top: 15px; color: #4fc3f7;">🖱️ 拖动鼠标旋转查看</p>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">上传图片纹理</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        支持 JPG, PNG 格式
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+    </div>
+
+    <script type="module" src="/bubble-with-texture.js"></script>
+  </body>
+</html>
+

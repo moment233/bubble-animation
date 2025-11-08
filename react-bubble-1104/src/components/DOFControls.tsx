@@ -6,16 +6,19 @@ interface DOFControlsProps {
   onFocusChange: (value: number) => void;
   onApertureChange: (value: number) => void;
   onMaxBlurChange: (value: number) => void;
+  onBubbleSpeedChange: (value: number) => void;
 }
 
 export default function DOFControls({
   onFocusChange,
   onApertureChange,
   onMaxBlurChange,
+  onBubbleSpeedChange,
 }: DOFControlsProps) {
   const [focus, setFocus] = useState(10.0);
   const [aperture, setAperture] = useState(0.0001);
   const [maxBlur, setMaxBlur] = useState(0.01);
+  const [bubbleSpeed, setBubbleSpeed] = useState(70); // 默认速度25
   const [isExpanded, setIsExpanded] = useState(true); // 展开/收起状态
 
   const handleFocusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,13 +39,21 @@ export default function DOFControls({
     onMaxBlurChange(value);
   };
 
+  const handleBubbleSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setBubbleSpeed(value);
+    onBubbleSpeedChange(value);
+  };
+
   const handleReset = () => {
     setFocus(10.0);
     setAperture(0.0001);
     setMaxBlur(0.01);
+    setBubbleSpeed(70);
     onFocusChange(10.0);
     onApertureChange(0.0001);
     onMaxBlurChange(0.01);
+    onBubbleSpeedChange(70);
   };
 
   const focusZ = 10 - focus;
@@ -214,6 +225,41 @@ export default function DOFControls({
             }}
           >
             {maxBlur.toFixed(3)}
+          </span>
+        </div>
+      </div>
+
+      {/* 气泡上升速度 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          🎈 气泡上升速度{' '}
+          <span style={{ fontSize: '10px', color: '#666' }}>Y轴运动</span>
+        </label>
+        <input
+          type="range"
+          min="10"
+          max="100"
+          step="1"
+          value={bubbleSpeed}
+          onChange={handleBubbleSpeedChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#10b981',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            {bubbleSpeed.toFixed(0)} units/s
           </span>
         </div>
       </div>

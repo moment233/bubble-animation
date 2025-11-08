@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>气泡照片贴图讨论</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: #000;
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #fff;
+        font-family: 'Arial', sans-serif;
+        font-size: 13px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 12px;
+        z-index: 100;
+        max-width: 420px;
+        line-height: 1.7;
+        border: 2px solid rgba(79, 195, 247, 0.3);
+      }
+
+      .info h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #4fc3f7;
+        border-bottom: 2px solid #4fc3f7;
+        padding-bottom: 8px;
+      }
+
+      .info h2 {
+        font-size: 14px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        color: #81c784;
+      }
+
+      .info p {
+        margin: 5px 0;
+        opacity: 0.95;
+        font-size: 12px;
+      }
+
+      .problem {
+        background: rgba(244, 67, 54, 0.15);
+        padding: 10px;
+        border-radius: 6px;
+        border-left: 3px solid #f44336;
+        margin: 10px 0;
+      }
+
+      .solution {
+        background: rgba(76, 175, 80, 0.15);
+        padding: 10px;
+        border-radius: 6px;
+        border-left: 3px solid #4caf50;
+        margin: 10px 0;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        color: #fff;
+        z-index: 100;
+        max-width: 300px;
+        border: 2px solid rgba(79, 195, 247, 0.3);
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 10px;
+        transition: transform 0.2s;
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 20px;
+        border-radius: 12px;
+        color: #fff;
+        z-index: 100;
+        min-width: 350px;
+        border: 2px solid rgba(79, 195, 247, 0.3);
+      }
+
+      .control-item {
+        margin: 12px 0;
+      }
+
+      .control-item label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 6px;
+        color: #4fc3f7;
+        font-weight: bold;
+      }
+
+      .control-item input[type="range"] {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.2);
+        outline: none;
+      }
+
+      .control-item select {
+        width: 100%;
+        padding: 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(79, 195, 247, 0.5);
+        font-size: 12px;
+      }
+
+      .method-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-left: 5px;
+      }
+
+      .tag-good {
+        background: rgba(76, 175, 80, 0.3);
+        color: #4caf50;
+      }
+
+      .tag-bad {
+        background: rgba(244, 67, 54, 0.3);
+        color: #f44336;
+      }
+
+      .tag-ok {
+        background: rgba(255, 152, 0, 0.3);
+        color: #ff9800;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h1>📸 气泡照片贴图分析</h1>
+      
+      <h2>🔴 核心问题</h2>
+      <div class="problem">
+        <p><strong>这张照片已经是"渲染好"的气泡</strong></p>
+        <p>• 包含固定的光照和高光</p>
+        <p>• 彩虹色是特定角度的结果</p>
+        <p>• 透明感是视觉错觉，实际是不透明图片</p>
+        <p>• 球体UV展开会产生两极扭曲</p>
+      </div>
+
+      <h2>✅ 可用方案</h2>
+      <div class="solution">
+        <p><strong>方案1：Billboard/Sprite</strong></p>
+        <p>让图片永远面向相机（最简单）</p>
+        
+        <p style="margin-top: 8px;"><strong>方案2：直接UV贴图</strong></p>
+        <p>会有扭曲，但能看（适合静态展示）</p>
+        
+        <p style="margin-top: 8px;"><strong>方案3：提取特征</strong></p>
+        <p>用图片颜色生成渐变（最真实）</p>
+      </div>
+
+      <p style="margin-top: 15px; color: #4fc3f7; font-size: 13px;">
+        🖱️ 上传您的气泡照片，旋转查看不同方案的效果
+      </p>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">上传气泡照片</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        支持 JPG, PNG 格式
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择气泡图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+    </div>
+
+    <div class="controls">
+      <h3 style="margin: 0 0 15px 0; font-size: 15px; color: #4fc3f7;">贴图方案对比</h3>
+      
+      <div class="control-item">
+        <label>
+          方案1：Billboard <span class="method-tag tag-good">推荐</span>
+        </label>
+        <p style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
+          图片永远面向相机，无扭曲
+        </p>
+      </div>
+      
+      <div class="control-item">
+        <label>
+          方案2：球体UV贴图 <span class="method-tag tag-ok">有扭曲</span>
+        </label>
+        <p style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
+          旋转时会看到两极扭曲和"缝合线"
+        </p>
+      </div>
+      
+      <div class="control-item">
+        <label>
+          方案3：仅作为颜色参考 <span class="method-tag tag-good">最真实</span>
+        </label>
+        <p style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">
+          用照片配色重新渲染，保持3D真实感
+        </p>
+      </div>
+      
+      <div class="control-item" style="margin-top: 20px;">
+        <label>当前显示方案：</label>
+        <select id="mappingMethod">
+          <option value="all">全部并排对比</option>
+          <option value="billboard">仅 Billboard</option>
+          <option value="uv">仅 UV 贴图</option>
+          <option value="inspired">仅 颜色参考</option>
+        </select>
+      </div>
+    </div>
+
+    <script type="module" src="/bubble-photo-mapping.js"></script>
+  </body>
+</html>
+

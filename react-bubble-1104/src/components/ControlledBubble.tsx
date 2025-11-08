@@ -43,6 +43,17 @@ export default function ControlledBubble({
       const positions = geometryRef.current.attributes.position;
       originalPositions.current = new Float32Array(positions.array);
     }
+    
+    // 检查shader编译状态
+    if (materialRef.current) {
+      const renderer = (materialRef.current as any).renderer;
+      console.log('🎨 Shader Material 初始化完成');
+      console.log('📊 初始 Uniforms:', {
+        refractionRatio: materialRef.current.uniforms.refractionRatio.value,
+        reflectionStrength: materialRef.current.uniforms.reflectionStrength.value,
+        rainbowIntensity: materialRef.current.uniforms.rainbowIntensity.value,
+      });
+    }
   }, []);
 
   // 更新材质的 envMap uniform
@@ -60,7 +71,12 @@ export default function ControlledBubble({
       materialRef.current.uniforms.reflectionStrength.value = reflectionStrength;
       materialRef.current.uniforms.edgeColor.value = new THREE.Vector3(...edgeColor);
       materialRef.current.uniforms.rainbowIntensity.value = rainbowIntensity;
-      materialRef.current.needsUpdate = true;
+      
+      console.log('✅ Uniforms 已更新:', {
+        refractionRatio: materialRef.current.uniforms.refractionRatio.value,
+        reflectionStrength: materialRef.current.uniforms.reflectionStrength.value,
+        rainbowIntensity: materialRef.current.uniforms.rainbowIntensity.value,
+      });
     }
   }, [refractionRatio, reflectionStrength, edgeColor, rainbowIntensity]);
 
@@ -70,7 +86,7 @@ export default function ControlledBubble({
 
     const elapsedTime = state.clock.getElapsedTime();
 
-    // 缓慢旋转
+    // 缓慢自动旋转（可选）
     meshRef.current.rotation.y = elapsedTime * 0.1;
     meshRef.current.rotation.x = Math.sin(elapsedTime * 0.05) * 0.2;
 
@@ -115,9 +131,13 @@ export default function ControlledBubble({
       geometryRef.current.computeVertexNormals();
     }
 
-    // 更新相机位置
+    // 更新所有uniforms（确保每帧使用最新值）
     if (materialRef.current) {
       materialRef.current.uniforms.uCameraPos.value = camera.position;
+      materialRef.current.uniforms.refractionRatio.value = refractionRatio;
+      materialRef.current.uniforms.reflectionStrength.value = reflectionStrength;
+      materialRef.current.uniforms.edgeColor.value.set(...edgeColor);
+      materialRef.current.uniforms.rainbowIntensity.value = rainbowIntensity;
     }
   });
 
