@@ -1,94 +1,71 @@
 export const bubbleVertexShader = `
-  varying vec3 vNormal;
-  varying vec3 vPosition;
+  uniform float uTime;
+  uniform float uWaveAmplitude;
+  uniform float uWaveSpeed;
+  uniform float uDistortion;
+  
+  varying vec2 vUv;
 
   void main() {
-    vNormal = normalize(normalMatrix * normal);
-    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-    vPosition = worldPosition.xyz;
-    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+    vUv = uv;  // 直接使用 PlaneGeometry 的 uv attribute
+    
+    vec3 pos = position;
+    
+    // 计算到中心的距离
+    float dist = length(uv - 0.5);
+    
+    // 圆形遮罩
+    float mask = 1.0 - smoothstep(0.3, 0.5, dist);
+    
+    // 波浪形变（Z轴）- 使用波浪速度参数（增强效果 x3）
+    float wave1 = sin(uv.x * 10.0 + uTime * uWaveSpeed) * uWaveAmplitude * 3.0;
+    float wave2 = cos(uv.y * 10.0 + uTime * uWaveSpeed) * uWaveAmplitude * 3.0;
+    pos.z += (wave1 + wave2) * mask;
+    
+    // XY平面的波浪形变（让形变更明显）
+    float waveX = sin(uv.y * 8.0 + uTime * uWaveSpeed * 0.7) * uWaveAmplitude * 0.5;
+    float waveY = cos(uv.x * 8.0 + uTime * uWaveSpeed * 0.7) * uWaveAmplitude * 0.5;
+    pos.x += waveX * mask;
+    pos.y += waveY * mask;
+    
+    // 凹凸效果
+    float bump = sin(dist * 20.0 - uTime * 3.0) * 0.05;
+    pos.z += bump * mask;
+    
+    // 扭曲效果（旋转形变）- 大幅增强效果
+    if (uDistortion > 0.01) {
+      float angle = uTime * uWaveSpeed * 0.5 + dist * 10.0;
+      float twist = sin(angle) * uDistortion * 3.0 * mask;
+      float cosT = cos(twist);
+      float sinT = sin(twist);
+      vec2 rotated = vec2(
+        (uv.x - 0.5) * cosT - (uv.y - 0.5) * sinT,
+        (uv.x - 0.5) * sinT + (uv.y - 0.5) * cosT
+      );
+      pos.xy += rotated * 0.5;
+    }
+    
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
 
 export const bubbleFragmentShader = `
-  #ifdef GL_ES
-  precision highp float;
-  #endif
-
-  uniform vec3 uCameraPos;
-  uniform sampler2D envMap;
-  varying vec3 vNormal;
-  varying vec3 vPosition;
+  uniform sampler2D uTexture;
   
-  #define PI 3.14159265359
+  varying vec2 vUv;
   
-  // 等距投影采样函数
-  vec3 sampleEquirectangular(sampler2D envMap, vec3 direction) {
-    vec2 uv;
-    uv.x = atan(direction.z, direction.x) / (2.0 * PI) + 0.5;
-    uv.y = asin(clamp(direction.y, -1.0, 1.0)) / PI + 0.5;
-    return texture2D(envMap, uv).rgb;
-  }
-
-  vec3 getThinFilmColor(float cosTheta, float thickness) {
-    float opticalPath = 2.0 * 1.33 * thickness * cosTheta;
-
-    float phaseR = (2.0 * PI * opticalPath) / 650.0;
-    float phaseG = (2.0 * PI * opticalPath) / 550.0;
-    float phaseB = (2.0 * PI * opticalPath) / 450.0;
-
-    vec3 color;
-    color.r = pow(0.5 + 0.5 * cos(phaseR), 1.2);
-    color.g = pow(0.5 + 0.5 * cos(phaseG), 1.2);
-    color.b = pow(0.5 + 0.5 * cos(phaseB), 1.2);
-
-    return color;
-  }
-
   void main() {
-    vec3 viewDirection = normalize(uCameraPos - vPosition);
-    vec3 normal = normalize(vNormal);
-    float NdotV = abs(dot(normal, viewDirection));
-
-    float fresnel = pow(1.0 - NdotV, 1.8);
-
-    // 平滑的厚度变化（移除噪声，避免黑点闪烁）
-    float thickness = 350.0 + vNormal.y * 150.0 + vNormal.x * 60.0;
-    vec3 iridescence = getThinFilmColor(NdotV, thickness) * 2.2;
-
-    // 环境反射
-    vec3 reflected = reflect(-viewDirection, normal);
-    vec3 envColor = sampleEquirectangular(envMap, reflected);
-
-    // 环境折射
-    vec3 refracted = refract(-viewDirection, normal, 1.0 / 1.33);
-    vec3 refractColor = vec3(0.0);
+    vec2 center = vec2(0.5, 0.5);
+    float dist = length(vUv - center);
     
-    // 检查折射是否有效（避免全反射）
-    if (dot(refracted, refracted) > 0.001) {
-      refractColor = sampleEquirectangular(envMap, refracted);
-    }
-
-    float edgeMask = smoothstep(0.2, 0.95, fresnel);
+    // 直接采样纹理
+    vec4 color = texture2D(uTexture, vUv);
     
-    // 增强环境贴图权重，确保显示HDR效果
-    vec3 edgeColor = mix(iridescence, envColor, fresnel * 0.4);
-    vec3 centerColor = refractColor * 2.5 + envColor * 0.5;
-
-    vec3 finalColor = mix(centerColor, edgeColor, edgeMask);
-
-    // 增强饱和度和亮度
-    float luminance = dot(finalColor, vec3(0.299, 0.587, 0.114));
-    finalColor = mix(vec3(luminance), finalColor, 1.6);
-    finalColor *= 1.8;
-    finalColor += envColor * 0.2;
+    // 圆形遮罩（气泡形状）
+    float alpha = 1.0 - smoothstep(0.45, 0.5, dist);
+    color.a *= alpha;
     
-    // 添加轻微的平滑处理，避免闪烁
-    finalColor = clamp(finalColor, 0.0, 3.0);
-
-    float alpha = edgeMask * 0.95 + (1.0 - edgeMask) * 0.4;
-
-    gl_FragColor = vec4(finalColor, alpha);
+    gl_FragColor = color;
   }
 `;
 

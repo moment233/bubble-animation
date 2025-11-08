@@ -19,7 +19,12 @@ export default function Home() {
   const [focus, setFocus] = useState(10.0);
   const [aperture, setAperture] = useState(0.0001);
   const [maxBlur, setMaxBlur] = useState(0.01);
-  const [bubbleSpeed, setBubbleSpeed] = useState(25); // 气泡上升速度
+  const [bubbleSpeed, setBubbleSpeed] = useState(10); // 气泡上升速度
+  const [bubbleSize, setBubbleSize] = useState(0.4); // 气泡尺寸倍数
+  const [waveAmplitude, setWaveAmplitude] = useState(0.20); // 波浪强度
+  const [waveSpeed, setWaveSpeed] = useState(4.3); // 波浪速度
+  const [distortion, setDistortion] = useState(0.05); // 扭曲强度
+  const [subdivision, setSubdivision] = useState(128); // 顶点细分
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -68,7 +73,7 @@ export default function Home() {
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black">
       {/* Three.js 场景 */}
-      <BubbleScene focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} />
+      <BubbleScene focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} bubbleSize={bubbleSize} waveAmplitude={waveAmplitude} waveSpeed={waveSpeed} distortion={distortion} subdivision={subdivision} />
 
       {/* 磨砂玻璃输入框 */}
       <GlassInput />
@@ -79,6 +84,11 @@ export default function Home() {
         onApertureChange={setAperture}
         onMaxBlurChange={setMaxBlur}
         onBubbleSpeedChange={setBubbleSpeed}
+        onBubbleSizeChange={setBubbleSize}
+        onWaveAmplitudeChange={setWaveAmplitude}
+        onWaveSpeedChange={setWaveSpeed}
+        onDistortionChange={setDistortion}
+        onSubdivisionChange={setSubdivision}
       />
 
       {/* 导航按钮 */}

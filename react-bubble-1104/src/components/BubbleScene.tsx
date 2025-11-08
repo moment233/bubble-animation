@@ -3,7 +3,6 @@
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Suspense, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useEnvironment } from '@react-three/drei';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
@@ -14,43 +13,54 @@ interface BubbleGroupProps {
   aperture: number;
   maxBlur: number;
   bubbleSpeed: number;
+  bubbleSize: number;
+  waveAmplitude: number;
+  waveSpeed: number;
+  distortion: number;
+  subdivision: number;
 }
 
-function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed }: BubbleGroupProps) {
+function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAmplitude, waveSpeed, distortion, subdivision }: BubbleGroupProps) {
   const { camera, scene, gl, size } = useThree();
   const composerRef = useRef<EffectComposer | null>(null);
   const bokehPassRef = useRef<BokehPass | null>(null);
   
-  // 定义 HDR 文件列表
-  const hdrFiles = [
-    '/JCI54551673495.hdr',
-    '/JCI54553017162.hdr',
-    '/JCI54556473495.hdr',
-    '/JCI54558507195.hdr',
-    '/little_paris_eiffel_tower_1k.hdr',
-  ];
+  // ⚠️ HDR 加载已注释 - 移动端内存不足导致崩溃，且当前未使用 HDR
+  // // 定义 HDR 文件列表
+  // const hdrFiles = [
+  //   '/JCI54551673495.hdr',
+  //   '/JCI54553017162.hdr',
+  //   '/JCI54556473495.hdr',
+  //   '/JCI54558507195.hdr',
+  //   '/little_paris_eiffel_tower_1k.hdr',
+  // ];
 
-  // 预加载多个 HDR 文件
-  const hdr1 = useEnvironment({ files: hdrFiles[0] });
-  const hdr2 = useEnvironment({ files: hdrFiles[1] });
-  const hdr3 = useEnvironment({ files: hdrFiles[2] });
-  const hdr4 = useEnvironment({ files: hdrFiles[3] });
-  const hdr5 = useEnvironment({ files: hdrFiles[4] });
+  // // 预加载多个 HDR 文件
+  // const hdr1 = useEnvironment({ files: hdrFiles[0] });
+  // const hdr2 = useEnvironment({ files: hdrFiles[1] });
+  // const hdr3 = useEnvironment({ files: hdrFiles[2] });
+  // const hdr4 = useEnvironment({ files: hdrFiles[3] });
+  // const hdr5 = useEnvironment({ files: hdrFiles[4] });
 
-  // 将所有 HDR 组合成数组
-  const hdrTextures = [hdr1, hdr2, hdr3, hdr4, hdr5];
+  // // 将所有 HDR 组合成数组
+  // const hdrTextures = [hdr1, hdr2, hdr3, hdr4, hdr5];
   
-  // 检查所有 HDR 是否加载完成
-  const allHdrsLoaded = hdrTextures.every(hdr => hdr !== null);
+  // // 检查所有 HDR 是否加载完成
+  // const allHdrsLoaded = hdrTextures.every(hdr => hdr !== null);
 
-  // 设置环境贴图（使用第一个作为场景环境）
+  // // 设置环境贴图（使用第一个作为场景环境）
+  // useEffect(() => {
+  //   if (hdr1) {
+  //     scene.environment = hdr1;
+  //     scene.background = new THREE.Color(0x000000);
+  //     console.log('✅ Environment maps loaded successfully! Total:', hdrTextures.filter(h => h).length);
+  //   }
+  // }, [hdr1, scene, hdrTextures]);
+
+  // 设置场景背景色
   useEffect(() => {
-    if (hdr1) {
-      scene.environment = hdr1;
-      scene.background = new THREE.Color(0x000000);
-      console.log('✅ Environment maps loaded successfully! Total:', hdrTextures.filter(h => h).length);
-    }
-  }, [hdr1, scene, hdrTextures]);
+    scene.background = new THREE.Color(0x000000);
+  }, [scene]);
 
   // 创建后处理管线（和原版HTML完全一致）
   useEffect(() => {
@@ -140,14 +150,18 @@ function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed }: BubbleGroupProps
   return (
     <>
       {/* 创建 10 个气泡 */}
-      {allHdrsLoaded && Array.from({ length: 10 }).map((_, index) => (
+      {Array.from({ length: 10 }).map((_, index) => (
         <Bubble 
           key={index} 
           index={index}
           totalCount={10}
-          envMaps={hdrTextures} 
           camera={camera}
           speed={bubbleSpeed}
+          sizeMultiplier={bubbleSize}
+          waveAmplitude={waveAmplitude}
+          waveSpeed={waveSpeed}
+          distortion={distortion}
+          subdivision={subdivision}
         />
       ))}
 
@@ -162,9 +176,14 @@ interface BubbleSceneProps {
   aperture: number;
   maxBlur: number;
   bubbleSpeed: number;
+  bubbleSize: number;
+  waveAmplitude: number;
+  waveSpeed: number;
+  distortion: number;
+  subdivision: number;
 }
 
-export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed }: BubbleSceneProps) {
+export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAmplitude, waveSpeed, distortion, subdivision }: BubbleSceneProps) {
   return (
     <Canvas
       camera={{
@@ -187,7 +206,7 @@ export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed }: B
       }}
     >
       <Suspense fallback={null}>
-        <BubbleGroup focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} />
+        <BubbleGroup focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} bubbleSize={bubbleSize} waveAmplitude={waveAmplitude} waveSpeed={waveSpeed} distortion={distortion} subdivision={subdivision} />
       </Suspense>
     </Canvas>
   );

@@ -7,6 +7,11 @@ interface DOFControlsProps {
   onApertureChange: (value: number) => void;
   onMaxBlurChange: (value: number) => void;
   onBubbleSpeedChange: (value: number) => void;
+  onBubbleSizeChange: (value: number) => void;
+  onWaveAmplitudeChange: (value: number) => void;
+  onWaveSpeedChange: (value: number) => void;
+  onDistortionChange: (value: number) => void;
+  onSubdivisionChange: (value: number) => void;
 }
 
 export default function DOFControls({
@@ -14,11 +19,21 @@ export default function DOFControls({
   onApertureChange,
   onMaxBlurChange,
   onBubbleSpeedChange,
+  onBubbleSizeChange,
+  onWaveAmplitudeChange,
+  onWaveSpeedChange,
+  onDistortionChange,
+  onSubdivisionChange,
 }: DOFControlsProps) {
   const [focus, setFocus] = useState(10.0);
   const [aperture, setAperture] = useState(0.0001);
   const [maxBlur, setMaxBlur] = useState(0.01);
-  const [bubbleSpeed, setBubbleSpeed] = useState(70); // 默认速度25
+  const [bubbleSpeed, setBubbleSpeed] = useState(40); // 默认速度40 (8 units/s)
+  const [bubbleSize, setBubbleSize] = useState(0.4); // 默认尺寸倍数0.4
+  const [waveAmplitude, setWaveAmplitude] = useState(0.20); // 波浪强度
+  const [waveSpeed, setWaveSpeed] = useState(4.3); // 波浪速度
+  const [distortion, setDistortion] = useState(0.05); // 扭曲强度
+  const [subdivision, setSubdivision] = useState(128); // 顶点细分
   const [isExpanded, setIsExpanded] = useState(true); // 展开/收起状态
 
   const handleFocusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,15 +60,55 @@ export default function DOFControls({
     onBubbleSpeedChange(value);
   };
 
+  const handleBubbleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setBubbleSize(value);
+    onBubbleSizeChange(value);
+  };
+
+  const handleWaveAmplitudeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setWaveAmplitude(value);
+    onWaveAmplitudeChange(value);
+  };
+
+  const handleWaveSpeedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setWaveSpeed(value);
+    onWaveSpeedChange(value);
+  };
+
+  const handleDistortionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setDistortion(value);
+    onDistortionChange(value);
+  };
+
+  const handleSubdivisionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    setSubdivision(value);
+    onSubdivisionChange(value);
+  };
+
   const handleReset = () => {
     setFocus(10.0);
     setAperture(0.0001);
     setMaxBlur(0.01);
-    setBubbleSpeed(70);
+    setBubbleSpeed(40);
+    setBubbleSize(0.4);
+    setWaveAmplitude(0.20);
+    setWaveSpeed(4.3);
+    setDistortion(0.05);
+    setSubdivision(128);
     onFocusChange(10.0);
     onApertureChange(0.0001);
     onMaxBlurChange(0.01);
-    onBubbleSpeedChange(70);
+    onBubbleSpeedChange(40);
+    onBubbleSizeChange(0.4);
+    onWaveAmplitudeChange(0.20);
+    onWaveSpeedChange(4.3);
+    onDistortionChange(0.05);
+    onSubdivisionChange(128);
   };
 
   const focusZ = 10 - focus;
@@ -244,7 +299,7 @@ export default function DOFControls({
         </label>
         <input
           type="range"
-          min="10"
+          min="0"
           max="100"
           step="1"
           value={bubbleSpeed}
@@ -260,6 +315,181 @@ export default function DOFControls({
             }}
           >
             {bubbleSpeed.toFixed(0)} units/s
+          </span>
+        </div>
+      </div>
+
+      {/* 气泡尺寸倍数 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          🫧 气泡尺寸{' '}
+          <span style={{ fontSize: '10px', color: '#666' }}>随机范围</span>
+        </label>
+        <input
+          type="range"
+          min="0.3"
+          max="2.0"
+          step="0.1"
+          value={bubbleSize}
+          onChange={handleBubbleSizeChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#f59e0b',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            ×{bubbleSize.toFixed(1)} <span style={{ fontSize: '10px', color: '#666' }}>({(bubbleSize * 0.8).toFixed(2)} - {(bubbleSize * 1.8).toFixed(2)})</span>
+          </span>
+        </div>
+      </div>
+
+      {/* 波浪强度 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          🌊 波浪强度{' '}
+          <span style={{ fontSize: '10px', color: '#666' }}>起伏幅度</span>
+        </label>
+        <input
+          type="range"
+          min="0.0"
+          max="1.0"
+          step="0.05"
+          value={waveAmplitude}
+          onChange={handleWaveAmplitudeChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#3b82f6',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            {waveAmplitude.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      {/* 波浪速度 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          ⚡ 波浪速度{' '}
+          <span style={{ fontSize: '10px', color: '#666' }}>动画快慢</span>
+        </label>
+        <input
+          type="range"
+          min="0.0"
+          max="10.0"
+          step="0.1"
+          value={waveSpeed}
+          onChange={handleWaveSpeedChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#06b6d4',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            {waveSpeed.toFixed(1)}
+          </span>
+        </div>
+      </div>
+
+      {/* 扭曲强度 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          🌀 扭曲强度{' '}
+          <span style={{ fontSize: '10px', color: '#666' }}>旋转形变</span>
+        </label>
+        <input
+          type="range"
+          min="0.0"
+          max="1.0"
+          step="0.05"
+          value={distortion}
+          onChange={handleDistortionChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#ec4899',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            {distortion.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      {/* 顶点细分 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          🔺 顶点细分{' '}
+          <span style={{ fontSize: '10px', color: '#666' }}>平滑度</span>
+        </label>
+        <input
+          type="range"
+          min="16"
+          max="128"
+          step="16"
+          value={subdivision}
+          onChange={handleSubdivisionChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#a855f7',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            {subdivision}
           </span>
         </div>
       </div>
