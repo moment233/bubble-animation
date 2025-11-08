@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Billboard 三参数控制</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        overflow: hidden;
+        background: linear-gradient(to bottom, #000000, #1a1a2e);
+        font-family: 'Arial', sans-serif;
+        color: #fff;
+      }
+
+      #webgl {
+        position: fixed;
+        top: 0;
+        left: 0;
+        outline: none;
+      }
+
+      .info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        max-width: 400px;
+        border: 2px solid rgba(100, 200, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+        font-size: 13px;
+        line-height: 1.8;
+      }
+
+      .info h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #64c8ff;
+        border-bottom: 2px solid #64c8ff;
+        padding-bottom: 10px;
+      }
+
+      .info h2 {
+        font-size: 14px;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        color: #88ddff;
+      }
+
+      .param-explain {
+        background: rgba(100, 200, 255, 0.1);
+        padding: 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border-left: 4px solid #64c8ff;
+      }
+
+      .param-explain h3 {
+        font-size: 13px;
+        color: #88ddff;
+        margin-bottom: 5px;
+      }
+
+      .param-explain p {
+        font-size: 11px;
+        opacity: 0.9;
+        line-height: 1.6;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        padding: 30px;
+        border-radius: 20px;
+        width: 380px;
+        border: 2px solid rgba(100, 200, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+      }
+
+      .controls h3 {
+        margin: 0 0 25px 0;
+        font-size: 18px;
+        color: #64c8ff;
+        text-align: center;
+      }
+
+      .control-item {
+        margin: 25px 0;
+      }
+
+      .control-item label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        margin-bottom: 10px;
+        color: #88ddff;
+        font-weight: bold;
+      }
+
+      .param-name {
+        font-size: 15px;
+      }
+
+      .param-value {
+        background: rgba(100, 200, 255, 0.3);
+        padding: 5px 15px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-family: monospace;
+        color: #64c8ff;
+        min-width: 80px;
+        text-align: center;
+      }
+
+      .slider-container {
+        position: relative;
+        padding: 10px 0;
+      }
+
+      .control-item input[type="range"] {
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(to right, #1a1a2e, #64c8ff);
+        outline: none;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      .control-item input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #64c8ff, #88ddff);
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+        transition: all 0.2s;
+      }
+
+      .control-item input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 15px rgba(100, 200, 255, 1);
+      }
+
+      .control-item input[type="range"]::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #64c8ff, #88ddff);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+      }
+
+      .param-hint {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-top: 8px;
+        text-align: center;
+      }
+
+      .upload-area {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 25px;
+        border-radius: 15px;
+        max-width: 300px;
+        border: 2px solid rgba(100, 200, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+      }
+
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #64c8ff 0%, #4a9eff 100%);
+        color: #000;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 12px;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(100, 200, 255, 0.5);
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(100, 200, 255, 0.7);
+      }
+
+      #fileInput {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="webgl"></canvas>
+
+    <div class="info">
+      <h1>🎯 Billboard 三参数控制</h1>
+      
+      <div class="param-explain">
+        <h3>📈 速度 (Speed)</h3>
+        <p>• 控制动画的播放速度</p>
+        <p>• 值越大，气泡形变越快</p>
+        <p>• 范围：0 - 100</p>
+      </div>
+
+      <div class="param-explain">
+        <h3>🔷 细节密度 (Spikes)</h3>
+        <p>• 控制形变的细节程度</p>
+        <p>• 值越大，表面的"尖刺"越密集</p>
+        <p>• 类似噪声的频率参数</p>
+        <p>• 范围：0.0 - 1.0</p>
+      </div>
+
+      <div class="param-explain">
+        <h3>🌊 形变幅度 (Processing)</h3>
+        <p>• 控制形变的强度</p>
+        <p>• 值越大，凹凸越明显</p>
+        <p>• 类似波浪的振幅</p>
+        <p>• 范围：0.0 - 1.0</p>
+      </div>
+
+      <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+        💡 使用下方滑块实时调整三个参数
+      </p>
+    </div>
+
+    <div class="upload-area">
+      <h2 style="margin: 0 0 10px 0; font-size: 16px;">📤 上传气泡图片</h2>
+      <p style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">
+        支持 JPG, PNG 格式
+      </p>
+      <input type="file" id="fileInput" accept="image/*" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        📁 选择图片
+      </button>
+      <p id="fileName" style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+        未选择文件
+      </p>
+    </div>
+
+    <div class="controls">
+      <h3>🎛️ 形变参数控制</h3>
+      
+      <div class="control-item">
+        <label>
+          <span class="param-name">速度 (Speed)</span>
+          <span class="param-value" id="speedValue">61</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="speed" min="0" max="100" step="1" value="61">
+        </div>
+        <p class="param-hint">控制动画播放速度</p>
+      </div>
+      
+      <div class="control-item">
+        <label>
+          <span class="param-name">细节密度 (Spikes)</span>
+          <span class="param-value" id="spikesValue">0.42</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="spikes" min="0" max="1" step="0.01" value="0.42">
+        </div>
+        <p class="param-hint">表面细节的密集程度</p>
+      </div>
+      
+      <div class="control-item">
+        <label>
+          <span class="param-name">形变幅度 (Processing)</span>
+          <span class="param-value" id="processingValue">0.50</span>
+        </label>
+        <div class="slider-container">
+          <input type="range" id="processing" min="0" max="1" step="0.01" value="0.50">
+        </div>
+        <p class="param-hint">形变的强度大小</p>
+      </div>
+    </div>
+
+    <script type="module" src="/billboard-three-params.js"></script>
+  </body>
+</html>
+
