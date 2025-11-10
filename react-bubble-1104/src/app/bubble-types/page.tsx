@@ -117,54 +117,57 @@ export default function BubbleTypesPage() {
         </div>
       </div>
 
-      {/* 气泡列表 */}
-      <div className="pt-20 pb-10 space-y-8">
-        {bubbles.map((bubbleParams, index) => (
-          <div
-            key={index}
-            className="w-full px-6"
-            style={{
-              minHeight: '500px',
-            }}
-          >
-            {/* 气泡 Canvas */}
+      {/* 气泡列表 - 横向排列 */}
+      <div className="pt-20 pb-10 px-4">
+        <div className="flex gap-4 w-full overflow-x-auto">
+          {bubbles.map((bubbleParams, index) => (
             <div
-              className="w-full rounded-lg overflow-hidden border border-purple-500/30"
+              key={index}
+              className="flex-shrink-0"
               style={{
-                height: '400px',
-                background: 'rgba(0, 0, 0, 0.3)',
+                width: 'calc(20% - 16px)',
+                minWidth: '300px',
               }}
             >
-              <DynamicSingleBubbleScene
-                focus={focus}
-                aperture={aperture}
-                maxBlur={maxBlur}
-                bubbleSpeed={bubbleParams.speed}
-                bubbleSize={bubbleParams.size}
-                waveAmplitude={bubbleParams.waveAmplitude}
-                waveSpeed={bubbleParams.waveSpeed}
-                distortion={bubbleParams.distortion}
-                subdivision={bubbleParams.subdivision}
-                textureIndex={bubbleParams.textureIndex}
-                delay={index * 0.5} // 错开出现时间
-                speedMultiplier={1.0}
+              {/* 气泡 Canvas */}
+              <div
+                className="w-full rounded-lg overflow-hidden border border-purple-500/30 mb-4"
                 style={{
-                  width: '100%',
-                  height: '100%',
+                  height: '400px',
+                  background: 'rgba(0, 0, 0, 0.3)',
                 }}
-              />
-            </div>
+              >
+                <DynamicSingleBubbleScene
+                  focus={focus}
+                  aperture={aperture}
+                  maxBlur={maxBlur}
+                  bubbleSpeed={bubbleParams.speed}
+                  bubbleSize={bubbleParams.size}
+                  waveAmplitude={bubbleParams.waveAmplitude}
+                  waveSpeed={bubbleParams.waveSpeed}
+                  distortion={bubbleParams.distortion}
+                  subdivision={bubbleParams.subdivision}
+                  textureIndex={bubbleParams.textureIndex}
+                  delay={index * 0.5} // 错开出现时间
+                  speedMultiplier={1.0}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                  }}
+                />
+              </div>
 
-            {/* 控制面板 */}
-            <div className="mt-4">
-              <BubbleControlPanel
-                bubbleIndex={index}
-                params={bubbleParams}
-                onParamsChange={(params) => handleBubbleParamsChange(index, params)}
-              />
+              {/* 控制面板 */}
+              <div>
+                <BubbleControlPanel
+                  bubbleIndex={index}
+                  params={bubbleParams}
+                  onParamsChange={(params) => handleBubbleParamsChange(index, params)}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </main>
   );

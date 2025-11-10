@@ -34,13 +34,47 @@ export default function BubbleControlPanel({
   };
 
   const handleCopyParams = async () => {
+    const paramsJson = JSON.stringify(params, null, 2);
+    
     try {
-      const paramsJson = JSON.stringify(params, null, 2);
-      await navigator.clipboard.writeText(paramsJson);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
+      // 优先使用现代 Clipboard API
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(paramsJson);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+        return;
+      }
+      
+      // 降级方案：使用传统方法
+      const textArea = document.createElement('textarea');
+      textArea.value = paramsJson;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          setCopySuccess(true);
+          setTimeout(() => setCopySuccess(false), 2000);
+        } else {
+          throw new Error('execCommand 复制失败');
+        }
+      } catch (err) {
+        console.error('复制失败:', err);
+        // 如果都失败了，至少显示内容让用户手动复制
+        alert(`复制失败，请手动复制以下内容：\n\n${paramsJson}`);
+      } finally {
+        document.body.removeChild(textArea);
+      }
     } catch (err) {
       console.error('复制失败:', err);
+      // 显示内容让用户手动复制
+      alert(`复制失败，请手动复制以下内容：\n\n${paramsJson}`);
     }
   };
 

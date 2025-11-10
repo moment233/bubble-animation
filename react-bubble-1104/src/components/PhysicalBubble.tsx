@@ -22,6 +22,8 @@ interface PhysicalBubbleProps {
   bubbleIOR: number;
   transparency: number;
   bubbleThickness: number;
+  // 缩放
+  bubbleScale?: number;
 }
 
 export default function PhysicalBubble({
@@ -39,6 +41,7 @@ export default function PhysicalBubble({
   bubbleIOR,
   transparency,
   bubbleThickness,
+  bubbleScale = 1.0,
 }: PhysicalBubbleProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const geometryRef = useRef<THREE.BufferGeometry | null>(null);
@@ -233,6 +236,13 @@ export default function PhysicalBubble({
       materialRef.current.uniforms.bubbleThickness.value = bubbleThickness;
     }
   }, [boost, edgeGlowColor, edgeIntensity, useReflectionTint, useClearcoatTint, useDirectOverlay, bubbleIOR, transparency, bubbleThickness]);
+
+  // 缩放更新
+  useEffect(() => {
+    if (meshRef.current) {
+      meshRef.current.scale.setScalar(bubbleScale);
+    }
+  }, [bubbleScale]);
 
   // 动画循环
   useFrame((state) => {

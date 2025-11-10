@@ -15,6 +15,8 @@ interface PhysicalControlPanelProps {
   bubbleIOR: number;
   transparency: number;
   bubbleThickness: number;
+  // 球体缩放
+  bubbleScale: number;
   // 3种边缘颜色模式开关
   useReflectionTint: boolean;
   useClearcoatTint: boolean;
@@ -29,6 +31,7 @@ interface PhysicalControlPanelProps {
   onBubbleIORChange: (value: number) => void;
   onTransparencyChange: (value: number) => void;
   onBubbleThicknessChange: (value: number) => void;
+  onBubbleScaleChange: (value: number) => void;
   onReflectionTintToggle: (value: boolean) => void;
   onClearcoatTintToggle: (value: boolean) => void;
   onDirectOverlayToggle: (value: boolean) => void;
@@ -45,6 +48,7 @@ export default function PhysicalControlPanel({
   bubbleIOR,
   transparency,
   bubbleThickness,
+  bubbleScale,
   useReflectionTint,
   useClearcoatTint,
   useDirectOverlay,
@@ -58,6 +62,7 @@ export default function PhysicalControlPanel({
   onBubbleIORChange,
   onTransparencyChange,
   onBubbleThicknessChange,
+  onBubbleScaleChange,
   onReflectionTintToggle,
   onClearcoatTintToggle,
   onDirectOverlayToggle,
@@ -233,6 +238,19 @@ export default function PhysicalControlPanel({
               className="slider"
             />
             <p className="mt-2 text-xs text-white/50">影响折射光线的衰减</p>
+          </ControlBlock>
+
+          <ControlBlock title="球体缩放" value={bubbleScale.toFixed(2)}>
+            <input
+              type="range"
+              min="0.5"
+              max="2.0"
+              step="0.01"
+              value={bubbleScale}
+              onChange={(event) => onBubbleScaleChange(parseFloat(event.target.value))}
+              className="slider"
+            />
+            <p className="mt-2 text-xs text-white/50">整体缩放气泡大小（不影响物理参数）</p>
           </ControlBlock>
 
           <ControlBlock title="边缘光晕颜色" value={previewHex}>
