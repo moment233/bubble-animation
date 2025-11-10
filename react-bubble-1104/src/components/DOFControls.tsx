@@ -12,6 +12,7 @@ interface DOFControlsProps {
   onWaveSpeedChange: (value: number) => void;
   onDistortionChange: (value: number) => void;
   onSubdivisionChange: (value: number) => void;
+  onBubbleCountChange: (value: number) => void;
 }
 
 export default function DOFControls({
@@ -24,16 +25,18 @@ export default function DOFControls({
   onWaveSpeedChange,
   onDistortionChange,
   onSubdivisionChange,
+  onBubbleCountChange,
 }: DOFControlsProps) {
   const [focus, setFocus] = useState(10.0);
   const [aperture, setAperture] = useState(0.0001);
   const [maxBlur, setMaxBlur] = useState(0.01);
-  const [bubbleSpeed, setBubbleSpeed] = useState(40); // 默认速度40 (8 units/s)
+  const [bubbleSpeed, setBubbleSpeed] = useState(10); // 默认速度10
   const [bubbleSize, setBubbleSize] = useState(0.4); // 默认尺寸倍数0.4
   const [waveAmplitude, setWaveAmplitude] = useState(0.20); // 波浪强度
   const [waveSpeed, setWaveSpeed] = useState(4.3); // 波浪速度
   const [distortion, setDistortion] = useState(0.05); // 扭曲强度
   const [subdivision, setSubdivision] = useState(128); // 顶点细分
+  const [bubbleCount, setBubbleCount] = useState(10); // 气泡数量
   const [isExpanded, setIsExpanded] = useState(true); // 展开/收起状态
 
   const handleFocusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,48 +93,78 @@ export default function DOFControls({
     onSubdivisionChange(value);
   };
 
+  const handleBubbleCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    setBubbleCount(value);
+    onBubbleCountChange(value);
+  };
+
   const handleReset = () => {
     setFocus(10.0);
     setAperture(0.0001);
     setMaxBlur(0.01);
-    setBubbleSpeed(40);
+    setBubbleSpeed(10);
     setBubbleSize(0.4);
     setWaveAmplitude(0.20);
     setWaveSpeed(4.3);
     setDistortion(0.05);
     setSubdivision(128);
+    setBubbleCount(10);
     onFocusChange(10.0);
     onApertureChange(0.0001);
     onMaxBlurChange(0.01);
-    onBubbleSpeedChange(40);
+    onBubbleSpeedChange(10);
     onBubbleSizeChange(0.4);
     onWaveAmplitudeChange(0.20);
     onWaveSpeedChange(4.3);
     onDistortionChange(0.05);
     onSubdivisionChange(128);
+    onBubbleCountChange(10);
   };
 
   const focusZ = 10 - focus;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        background: 'rgba(0, 0, 0, 0.85)',
-        padding: isExpanded ? '20px' : '12px',
-        borderRadius: '12px',
-        color: 'white',
-        width: isExpanded ? '280px' : 'auto',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        border: '1px solid rgba(139, 92, 246, 0.3)',
-        zIndex: 1000,
-        transition: 'all 0.3s ease',
-        transform: 'translateZ(0)',
-      }}
-    >
+    <>
+      <style>
+        {`
+          .dof-controls-panel::-webkit-scrollbar {
+            width: 8px;
+          }
+          .dof-controls-panel::-webkit-scrollbar-track {
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 4px;
+          }
+          .dof-controls-panel::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.5);
+            border-radius: 4px;
+          }
+          .dof-controls-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 92, 246, 0.7);
+          }
+        `}
+      </style>
+      <div
+        className="dof-controls-panel"
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(0, 0, 0, 0.85)',
+          padding: isExpanded ? '20px' : '12px',
+          borderRadius: '12px',
+          color: 'white',
+          width: isExpanded ? '280px' : 'auto',
+          maxHeight: 'calc(100vh - 40px)',
+          overflowY: 'auto',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          zIndex: 1000,
+          transition: 'all 0.3s ease',
+          transform: 'translateZ(0)',
+        }}
+      >
       {/* 标题栏 - 可点击展开/收起 */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
@@ -336,8 +369,8 @@ export default function DOFControls({
         </label>
         <input
           type="range"
-          min="0.3"
-          max="2.0"
+          min="0.1"
+          max="1.0"
           step="0.1"
           value={bubbleSize}
           onChange={handleBubbleSizeChange}
@@ -496,6 +529,40 @@ export default function DOFControls({
         </div>
       </div>
 
+      {/* 气泡数量 */}
+      <div style={{ marginBottom: '15px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', paddingTop: '15px' }}>
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '5px',
+            fontSize: '12px',
+            color: '#aaa',
+          }}
+        >
+          🎈 气泡数量
+        </label>
+        <input
+          type="range"
+          min="5"
+          max="30"
+          step="1"
+          value={bubbleCount}
+          onChange={handleBubbleCountChange}
+          style={{ width: '100%', cursor: 'pointer' }}
+        />
+        <div style={{ marginTop: '5px', textAlign: 'right' }}>
+          <span
+            style={{
+              color: '#a855f7',
+              fontWeight: 600,
+              fontSize: '13px',
+            }}
+          >
+            {bubbleCount}
+          </span>
+        </div>
+      </div>
+
           {/* 重置按钮 */}
           <button
             onClick={handleReset}
@@ -522,6 +589,7 @@ export default function DOFControls({
         </div>
       )}
     </div>
+    </>
   );
 }
 

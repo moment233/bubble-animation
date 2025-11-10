@@ -25,6 +25,7 @@ export default function Home() {
   const [waveSpeed, setWaveSpeed] = useState(4.3); // 波浪速度
   const [distortion, setDistortion] = useState(0.05); // 扭曲强度
   const [subdivision, setSubdivision] = useState(128); // 顶点细分
+  const [bubbleCount, setBubbleCount] = useState(10); // 气泡数量
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function Home() {
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black">
       {/* Three.js 场景 */}
-      <BubbleScene focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} bubbleSize={bubbleSize} waveAmplitude={waveAmplitude} waveSpeed={waveSpeed} distortion={distortion} subdivision={subdivision} />
+      <BubbleScene focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} bubbleSize={bubbleSize} waveAmplitude={waveAmplitude} waveSpeed={waveSpeed} distortion={distortion} subdivision={subdivision} bubbleCount={bubbleCount} />
 
       {/* 磨砂玻璃输入框 */}
       <GlassInput />
@@ -89,6 +90,7 @@ export default function Home() {
         onWaveSpeedChange={setWaveSpeed}
         onDistortionChange={setDistortion}
         onSubdivisionChange={setSubdivision}
+        onBubbleCountChange={setBubbleCount}
       />
 
       {/* 导航按钮 */}

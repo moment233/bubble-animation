@@ -18,26 +18,31 @@ interface BubbleGroupProps {
   waveSpeed: number;
   distortion: number;
   subdivision: number;
+  bubbleCount: number;
 }
 
-function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAmplitude, waveSpeed, distortion, subdivision }: BubbleGroupProps) {
+function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAmplitude, waveSpeed, distortion, subdivision, bubbleCount }: BubbleGroupProps) {
   const { camera, scene, gl, size } = useThree();
   const composerRef = useRef<EffectComposer | null>(null);
   const bokehPassRef = useRef<BokehPass | null>(null);
   
-  // 🎲 生成随机气泡出现时间（三三两两出现效果）
-  const bubbleDelays = useMemo(() => {
-    const delays = [];
+  // 🎲 生成随机气泡出现时间和速度（三三两两出现效果）
+  const { bubbleDelays, bubbleSpeedMultipliers } = useMemo(() => {
+    const delays: number[] = [];
+    const speedMultipliers: number[] = [];
     let currentTime = 0;
-    let remaining = 10;
+    let remaining = bubbleCount;
     
     while (remaining > 0) {
       // 每组随机2-3个气泡
       const groupSize = Math.min(Math.random() < 0.5 ? 2 : 3, remaining);
+      // 每组随机一个速度倍数（0.7-1.3倍）
+      const groupSpeedMultiplier = 0.7 + Math.random() * 0.6;
       
       // 组内每个气泡延迟 = 当前组时间点 + 随机0-0.3秒
       for (let i = 0; i < groupSize; i++) {
         delays.push(currentTime + Math.random() * 0.3);
+        speedMultipliers.push(groupSpeedMultiplier); // 同一组使用相同速度
       }
       
       remaining -= groupSize;
@@ -46,8 +51,14 @@ function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAm
     }
     
     // 打乱顺序（让气泡索引和出现时间解耦）
-    return delays.sort(() => Math.random() - 0.5);
-  }, []);
+    const indices = delays.map((_, i) => i);
+    const shuffledIndices = indices.sort(() => Math.random() - 0.5);
+    
+    return {
+      bubbleDelays: shuffledIndices.map(i => delays[i]),
+      bubbleSpeedMultipliers: shuffledIndices.map(i => speedMultipliers[i]),
+    };
+  }, [bubbleCount]);
   
   // ⚠️ HDR 加载已注释 - 移动端内存不足导致崩溃，且当前未使用 HDR
   // // 定义 HDR 文件列表
@@ -83,7 +94,7 @@ function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAm
 
   // 设置场景背景色
   useEffect(() => {
-    scene.background = new THREE.Color(0x000000);
+      scene.background = new THREE.Color(0x000000);
   }, [scene]);
 
   // 创建后处理管线（和原版HTML完全一致）
@@ -173,14 +184,15 @@ function BubbleGroup({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAm
 
   return (
     <>
-      {/* 创建 10 个气泡 */}
-      {Array.from({ length: 10 }).map((_, index) => (
+      {/* 创建气泡 */}
+      {Array.from({ length: bubbleCount }).map((_, index) => (
         <Bubble 
           key={index} 
           index={index}
-          totalCount={10}
+          totalCount={bubbleCount}
           camera={camera}
           speed={bubbleSpeed}
+          speedMultiplier={bubbleSpeedMultipliers[index]}
           sizeMultiplier={bubbleSize}
           waveAmplitude={waveAmplitude}
           waveSpeed={waveSpeed}
@@ -206,9 +218,10 @@ interface BubbleSceneProps {
   waveSpeed: number;
   distortion: number;
   subdivision: number;
+  bubbleCount: number;
 }
 
-export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAmplitude, waveSpeed, distortion, subdivision }: BubbleSceneProps) {
+export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed, bubbleSize, waveAmplitude, waveSpeed, distortion, subdivision, bubbleCount }: BubbleSceneProps) {
   return (
     <Canvas
       camera={{
@@ -231,7 +244,7 @@ export default function BubbleScene({ focus, aperture, maxBlur, bubbleSpeed, bub
       }}
     >
       <Suspense fallback={null}>
-        <BubbleGroup focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} bubbleSize={bubbleSize} waveAmplitude={waveAmplitude} waveSpeed={waveSpeed} distortion={distortion} subdivision={subdivision} />
+        <BubbleGroup focus={focus} aperture={aperture} maxBlur={maxBlur} bubbleSpeed={bubbleSpeed} bubbleSize={bubbleSize} waveAmplitude={waveAmplitude} waveSpeed={waveSpeed} distortion={distortion} subdivision={subdivision} bubbleCount={bubbleCount} />
       </Suspense>
     </Canvas>
   );
